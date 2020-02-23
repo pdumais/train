@@ -1,0 +1,11 @@
+8bit value is sent to the computer
+
+bit     Arduino pin     AVR pin
+0           2               PD1
+1           4               PD4
+2           7               PE6
+3           8               PB4
+4           12              PD6
+5           -               
+6           -               
+7           -               
