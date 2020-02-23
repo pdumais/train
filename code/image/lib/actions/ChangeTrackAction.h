@@ -8,7 +8,7 @@
 class ChangeTrackAction : public Action
 {
 public:
-    ChangeTrackAction(SplitterAnnotation *sa, QString target, bool commingFromT0);
+    ChangeTrackAction(SplitterAnnotation *sa, QString source, QString target, bool commingFromT0);
 
     SplitterAnnotation* getSplitterAnnotation();
     bool getCommingFromT0();
@@ -17,6 +17,7 @@ public:
    void onEnterTurnout(SplitterAnnotation* sa) override;
    void onLeaveTurnout(SplitterAnnotation* sa) override;
 
+   QString toString() override;
 protected:
    void start(QVector<Annotation*> annotationsInRange) override;
 
@@ -32,6 +33,7 @@ private:
     SplitterAnnotation *sa;
     bool commingFromT0;
     QString target;
+    QString source;
     State currentState;
     State nextState;
 

@@ -32,3 +32,8 @@ void Action::done()
 {
     this->callBack();
 }
+
+QString Action::toString()
+{
+    return "ERROR: virtual action";
+}

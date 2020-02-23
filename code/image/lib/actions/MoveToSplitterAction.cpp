@@ -1,31 +1,39 @@
 #include "MoveToSplitterAction.h"
 #include <QTimer>
 
-MoveToSplitterAction::MoveToSplitterAction(QString currentTrack, QString targetTrack, bool reverse/*=false*/)
+MoveToSplitterAction::MoveToSplitterAction(SplitterAnnotation* sa, QString currentTrack, QString targetTrack, bool reverse/*=false*/)
 {
     this->reverse = reverse;
     this->targetTrack = targetTrack;
     this->currentTrack = currentTrack;
+    this->targetSplitter = sa;
 }
 
 void MoveToSplitterAction::start(QVector<Annotation*> annotationsInRange)
 {
     this->backingOutOfSplitter = nullptr;
+
     // Check if we are already within a compliant annotation
     for (auto it : annotationsInRange)
     {
-        SplitterAnnotation *sa = dynamic_cast<SplitterAnnotation*>(it);
-        if (!sa) continue;
-        if (!sa->getInRange()) continue;
+        if (it != this->targetSplitter) continue;
+        if (!it->getInRange()) break;
 
-        if (sa->getTrack1() == this->targetTrack || sa->getTrack2() == this->targetTrack)
-        {
-            // We are already in range. We should go in the opposite direction that was requested
-            // until we are out
-            this->reverse = !this->reverse;
-            backingOutOfSplitter = sa;
-            break;
-        }
+        SplitterAnnotation *sa = dynamic_cast<SplitterAnnotation*>(it);
+        bool commingFromT0 = (this->reverse == sa->getClockWise());
+
+        // The train has already entered that splitter so we might have to back out
+        // of it if the track was not activated like it should have.
+            
+        // if we're comming from t1 or t2, we're going to t0 so there is no need to activate the track
+        if (!commingFromT0) break;
+
+        // If the target track is already the one that needed activatation then just proceed
+        if (sa->getActiveTrack() == this->targetTrack) break;
+
+        this->reverse = !this->reverse;
+        backingOutOfSplitter = sa;
+        break;
     }
 
     if (this->reverse)
@@ -58,7 +66,8 @@ void MoveToSplitterAction::onEnterTurnout(SplitterAnnotation* sa)
     qDebug() << "MoveToSplitterAction::onEnterTurnout";
 
 
-    if (sa->getTrack1() == this->targetTrack || sa->getTrack2() == this->targetTrack)
+    //if (sa->getTrack1() == this->targetTrack || sa->getTrack2() == this->targetTrack)
+    if (sa == this->targetSplitter)
     {
         // We've reached the turnout that can lead us to the target track
         this->railroadLogicService->stopTrain();
@@ -98,4 +107,12 @@ void MoveToSplitterAction::onLeaveTurnout(SplitterAnnotation* sa)
             this->railroadLogicService->startTrainReverse();
         }
     }
+}
+
+QString MoveToSplitterAction::toString()
+{
+    QString str;
+    QTextStream(&str) << "MoveToSplitterAction: " << (reverse?"backwards to ":"Forward to") << " " << targetTrack << " from " << currentTrack << " using splitter " << targetSplitter->toString();
+
+    return str;
 }

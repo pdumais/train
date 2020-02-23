@@ -8,7 +8,7 @@
 class MoveToSplitterAction : public Action
 {
 public:
-    MoveToSplitterAction(QString currentTrack, QString targetTrack, bool reverse=false);
+    MoveToSplitterAction(SplitterAnnotation* sa, QString currentTrack, QString targetTrack, bool reverse=false);
 
 
     QString getTargetTrack();
@@ -18,10 +18,12 @@ public:
     void onEnterTurnout(SplitterAnnotation* sa) override;
     void onLeaveTurnout(SplitterAnnotation* sa) override;
 
+   QString toString() override;
 private:
     bool reverse;
     QString currentTrack;
     QString targetTrack;
+    SplitterAnnotation* targetSplitter;
     SplitterAnnotation* backingOutOfSplitter;
 
 protected:

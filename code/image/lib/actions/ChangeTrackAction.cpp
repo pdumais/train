@@ -1,12 +1,14 @@
 #include "ChangeTrackAction.h"
 
-ChangeTrackAction::ChangeTrackAction(SplitterAnnotation *sa, QString target, bool commingFromT0)
+ChangeTrackAction::ChangeTrackAction(SplitterAnnotation *sa, QString source, QString target, bool commingFromT0)
 {
     this->sa = sa;
     this->target = target;
     this->commingFromT0 = commingFromT0;
+    this->source = source;
 
     this->reverseToGoThrough = (this->sa->getClockWise() == commingFromT0);
+
 }
 
 SplitterAnnotation* ChangeTrackAction::getSplitterAnnotation()
@@ -43,15 +45,7 @@ void ChangeTrackAction::start(QVector<Annotation*> annotationsInRange)
     else
     {
         // We need to reach t0. So activate the track we're on.
-        // The would be the opposite of our target
-        if (sa->getTrack1() == this->target)
-        {
-            this->railroadLogicService->activateSplitter(sa,true);
-        }
-        else if (sa->getTrack2() == this->target)
-        {
-            this->railroadLogicService->activateSplitter(sa,false);
-        }
+        this->railroadLogicService->activateSplitter(sa,source==sa->getTrack2());
     }
 
     if (this->reverseToGoThrough)
@@ -147,4 +141,12 @@ void ChangeTrackAction::onLeaveTurnoutStage2(SplitterAnnotation* sa)
 void ChangeTrackAction::onLeaveTurnoutEnd(SplitterAnnotation* sa)
 {
     this->done();
+}
+
+QString ChangeTrackAction::toString()
+{
+    QString str;
+    QTextStream(&str) << "ChangeTrackAction: " << sa->toString() << " comming from t0=" << commingFromT0 << " from " << source << " to " << target;
+
+    return str;
 }

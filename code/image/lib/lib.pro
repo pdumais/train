@@ -35,11 +35,12 @@ SOURCES += \
     actions/Action.cpp \
     actions/MoveToAction.cpp \
     Train.cpp \
+    Railroad.cpp \
     CollisionMatrix.cpp \
     PerformanceMonitor.cpp \
     actions/ChangeTrackAction.cpp \
-    actions/MoveToSplitterAction.cpp
-    visionservice.cpp \
+    actions/MoveToSplitterAction.cpp \
+    actions/InitSplittersAction.cpp \
 
 
 HEADERS += \
@@ -68,11 +69,13 @@ HEADERS += \
     actions/Action.h \
     actions/MoveToAction.h \
     Train.h \
+    Railroad.h \
+    Graph.h \
     CollisionMatrix.h \
     PerformanceMonitor.h \
     actions/ChangeTrackAction.h \
-    actions/MoveToSplitterAction.h
-    visionservice.h \
+    actions/MoveToSplitterAction.h \
+    actions/InitSplittersAction.h \
 
 
 FORMS += \

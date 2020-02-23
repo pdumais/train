@@ -6,6 +6,13 @@
 #include <QPolygon>
 
 
+class TrackSection
+{
+public:
+    QPolygon polygon;
+    QString trackName;
+};
+
 class Track
 {
 private:
@@ -22,6 +29,7 @@ public:
     void setPolygon(QPolygon);
 
     bool loops();
+    int findClosestIndex(QPoint p);
     QPoint findClosestPoint(QPoint p);
     QPolygon extractSegment(QPoint first, QPoint last, bool reverse);
 };

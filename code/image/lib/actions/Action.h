@@ -19,6 +19,7 @@ public:
     virtual void onLeaveTurnout(SplitterAnnotation* sa);
     virtual void onTrainMoved(Train* train);
 
+    virtual QString toString();
 protected:
     RailroadLogicService* railroadLogicService;
     void done();

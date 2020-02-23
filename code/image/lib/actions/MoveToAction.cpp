@@ -1,5 +1,6 @@
 #include "MoveToAction.h"
 #include <QTimer>
+#include <QPoint>
 
 MoveToAction::MoveToAction(QString currentTrack, QPoint pos, int radius,  bool reverse/*=false*/)
 {
@@ -61,4 +62,12 @@ void MoveToAction::onTrainMoved(Train* train)
         this->railroadLogicService->stopTrain();
         this->done();
     }
+}
+
+QString MoveToAction::toString()
+{
+    QString str;
+    QTextStream(&str) << "MoveToAction: " << (reverse?"backwards to ":"Forward to") << " (" << pos.x() << "," << pos.y() << ") from " << currentTrack;
+
+    return str;
 }

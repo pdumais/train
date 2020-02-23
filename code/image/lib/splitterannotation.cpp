@@ -1,5 +1,6 @@
 #include "splitterannotation.h"
 
+#include <QTextStream>
 #include <QVariant>
 #include "constants.h"
 
@@ -12,9 +13,20 @@ SplitterAnnotation::SplitterAnnotation(): Annotation(nullptr)
     this->track1 = "";
     this->track2 = "";
     this->inputTrack = "";
+    this->activeTrack = "";
     this->clockWise = false;
 
     this->setProperty("type",QVariant("SplitterAnnotation"));
+}
+
+void SplitterAnnotation::setActiveTrack(QString val)
+{
+    this->activeTrack = val;
+}
+
+QString SplitterAnnotation::getActiveTrack()
+{
+    return this->activeTrack;
 }
 
 QString SplitterAnnotation::pixmapName()
@@ -72,3 +84,11 @@ bool SplitterAnnotation::getClockWise()
 {
     return this->clockWise;
 }
+
+QString SplitterAnnotation::toString()
+{
+    QString str;
+    QTextStream(&str) << this->inputTrack << "/" << this->track1 << "/" << this->track2;
+    return str;
+}
+

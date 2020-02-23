@@ -117,18 +117,11 @@ QLineF VisionService::getLine(cv::RotatedRect r)
     }
 
     cv::Point2f lpcdelta = c - lpc;
+    // translate lp1 and lp2 so that the line they form goes through the rect's center point
     lp1 += lpcdelta;
     lp2 += lpcdelta;
 
     QLineF line(QPointF(lp1.x, lp1.y),QPointF(lp2.x,lp2.y));
-
-    //we wanna make sure that all lines point in the same direction.
-    //That is, the order or p1,p2 is the same  all time.
-    //So force every line to be in Q1 and Q4
-    if (line.angle() > 90 && line.angle() < 270)
-    {
-        line.setPoints(line.p2(), line.p1());
-    }
 
     return line;
 

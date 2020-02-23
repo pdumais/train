@@ -9,6 +9,7 @@
 #include "splitterannotation.h"
 #include <QObject>
 #include "Train.h"
+#include "Railroad.h"
 
 class ActionRunner;
 
@@ -31,18 +32,22 @@ public:
 
     void activateSplitter(SplitterAnnotation* sa, bool enabled);
 
-    void findTurnouts();
+    void updateTurnouts();
 
     ActionRunner* getActionRunner();
 
-//    QPoint getCurrentPosition();
-//    QString getCurrentTrack();
     QPoint getTrackWaypoint();
+
+    Railroad* getRailroad();
+
+    TrainPosition findClosestPoint(QPoint);
 
 public slots:
     void on_locomotive_changed(CVObject);
     void on_marker_found(DetectedMarker);
     void on_waypoint_set(QPoint);
+
+
 private:
 
     struct SplitterSearchNode
@@ -64,12 +69,10 @@ private:
     Configuration* configuration;
     AudioService* audioService;
     Train* train;
+    Railroad* railroad;
     int resumeSpeed;
 
-    TrainPosition findClosestPoint(QPoint);
-    int findShortestPath(SplitterSearchNode& node, TrainPosition pos, int accumulatedDistance, int level);
     void inRange(const QVector<Annotation*>& annotations, QVector<Annotation*>& targets, const CVObject& obj, int threshold);
-    SplitterSearchNode getConnectingSplitters(const QString& destinationTrack, const QString& currentTrack, const QVector<QString>& visitedTracks);
     int getDistanceOnTrack(Track* track, QPoint source, QPoint destination, bool direction);
     void checkAnnotations();
 };

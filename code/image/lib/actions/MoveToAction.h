@@ -20,6 +20,7 @@ public:
     void onEnterTurnout(SplitterAnnotation* sa) override;
     void onTrainMoved(Train* train) override;
 
+   QString toString() override;
 private:
     bool reverse;
     QString currentTrack;

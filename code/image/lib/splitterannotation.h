@@ -19,14 +19,19 @@ public:
     void setClockWise(bool val);
     bool getClockWise();
 
+    void setActiveTrack(QString val);
+    QString getActiveTrack();
+
     void serialize(QDataStream& ds) override;
     void deSerialize(QDataStream& ds) override;
 
+    QString toString();
 private:
 
     QString track1;
     QString track2;
     QString inputTrack;
+    QString activeTrack;
     bool clockWise;
 
 };

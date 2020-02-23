@@ -11,8 +11,8 @@ Train::Train(CVObject loco, QObject *parent) : QObject(parent)
     this->locomotive->object = loco.getPolygon();
     this->locomotive->center = loco.getCenter();
     this->locomotive->line = loco.getLine();
-    this->locomotive->next = nullptr;
-    this->locomotive->previous = nullptr;
+    this->locomotive->link1 = nullptr;
+    this->locomotive->link2 = nullptr;
 }
 
 Train::~Train()
@@ -88,19 +88,14 @@ int Train::areLinked(QLine l1, QLine l2)
 
 void Train::sortTrainParts(TrainPart* w)
 {   
-    w->previous = 0;
-    w->next = 0;
+    w->link1 = 0;
+    w->link2 = 0;
 
     int r = this->areLinked(w->line, this->locomotive->line);
-    if (r == 1)
+    if (r != 0)
     {
-        this->locomotive->next = w;
-        w->previous = this->locomotive;
-    }
-    else if (r == -1)
-    {
-        this->locomotive->previous = w;
-        w->next = this->locomotive;
+        if (!this->locomotive->link1) this->locomotive->link1 = w; else this->locomotive->link2 = w;
+        if (!w->link1) w->link1 = this->locomotive; else w->link2 = this->locomotive;
     }
 
     for (TrainPart* tp : this->wagons)
@@ -109,16 +104,8 @@ void Train::sortTrainParts(TrainPart* w)
         int r = this->areLinked(w->line, tp->line);
         if (!r) continue;
 
-        if (r == 1)
-        {
-            tp->next = w;
-            w->previous = tp;
-        }
-        else if (r == -1)
-        {
-            tp->previous= w;
-            w->next = tp;
-        }
+        if (!tp->link1) tp->link1 = w; else tp->link2 = w;
+        if (!w->link1) w->link1 = tp; else w->link2 = tp;
     }
 }
 
@@ -131,18 +118,36 @@ QVector<QPolygon> Train::getLinkedWagons() const
 {
     QVector<QPolygon> ret;
 
-    TrainPart* tp = this->locomotive->next;
-    while (tp)
-    {
-        ret.append(tp->object);
-        tp = tp->next;
-    }
+    TrainPart* links[2];
+    links[0] = this->locomotive->link1;
+    links[1] = this->locomotive->link2;
 
-    tp = this->locomotive->previous;
-    while (tp)
+    for (int i = 0; i < 2; i++)
     {
-        ret.append(tp->object);
-        tp = tp->previous;
+        int index = 0;
+        int indexIncrease = -1+(i*2);
+
+        TrainPart* tp = links[i];
+        TrainPart* last = this->locomotive;
+        // Locomotive is index 0
+        //
+        while (tp)
+        {
+            //now depending on which side start from loco, wagons will be numbered from -1 dowwards or from +1 upwards
+            index += indexIncrease;
+
+            ret.append(tp->object);
+            if (tp->link1 = last)
+            {
+                last = tp;
+                tp = tp->link2;
+            }
+            else
+            {
+                last = tp;
+                tp = tp->link1;
+            }
+        }
     }
 
     return ret;

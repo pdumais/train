@@ -43,8 +43,17 @@ bool Track::loops()
 // Returns the point on the track that is closest to the givven off-track point
 QPoint Track::findClosestPoint(QPoint point)
 {
+    int i = findClosestIndex(point);
+    if (i == -1) return point;
+
+    return this->polygon[i];
+}
+
+int Track::findClosestIndex(QPoint point)
+{
     int lastDistance = 100000;
-    QPoint ret = point;
+    int ret = -1;
+    int i = 0; 
     for (QPoint& p : this->polygon)
     {
         QPoint delta = p-point;
@@ -52,8 +61,9 @@ QPoint Track::findClosestPoint(QPoint point)
         if (d < lastDistance)
         {
             lastDistance = d;
-            ret = p;
+            ret = i;
         }
+        i++;
     }
 
     return ret;

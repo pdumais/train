@@ -19,6 +19,7 @@ void ActionRunner::setConfiguration(Configuration* conf)
 
 void ActionRunner::addAction(Action* action)
 {
+    qDebug() << "ActionRunner::addAction: " << action->toString();
     this->actions.append(action);
 }
 

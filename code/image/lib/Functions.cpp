@@ -1,8 +1,32 @@
 #include "Functions.h"
+#include <QTimer>                
+#include <QEventLoop>  
+
+
+
+std::function<void(int)> Functions::sleepFunction;    
 
 Functions::Functions()
 {
 
+}
+
+void Functions::nonBlockingSleep(int ms)
+{
+    if (Functions::sleepFunction)
+    {
+        Functions::sleepFunction(ms);
+        return;
+    }
+
+    QEventLoop loop;
+    QTimer::singleShot(300, &loop, &QEventLoop::quit);
+    loop.exec();
+}
+
+void Functions::overrideSleepFunction(std::function<void(int)>& fn)
+{
+    Functions::sleepFunction = fn;
 }
 
 uint32_t Functions::perimeter(QPolygon poly)

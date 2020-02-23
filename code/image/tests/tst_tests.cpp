@@ -11,6 +11,7 @@
 #include "configuration.h"
 #include "ActionRunner.h"
 #include "constants.h"
+#include "Functions.h"
 
 #define CONFIG_FILE "/home/pat/projects/train/code/image/tests/testdata/config.json"
 #define TRACK_DATA "/home/pat/projects/train/code/image/tests/testdata/tracks.dat"
@@ -28,6 +29,7 @@ private slots:
     void init();
     void cleanup();
     void checkTrackAssignment();
+    void validateGraph();
     void goFromLoopToInner();
     void goFromInnerToLoop();
     void goFromInnerToOutter();
@@ -65,11 +67,15 @@ tests::~tests()
 
 void tests::init()
 {
+    // Override the sleep timer so that tests dont hang on those
+    std::function<void(int)> fn = [](int ms) {};
+    Functions::overrideSleepFunction(fn);
+
     controller = new MockTrainController();
     vision = new MockVisionService();
     display = new MockDisplayService(); 
     railroadLogicService = new RailroadLogicService(controller, vision, display, &config, 0);
-    railroadLogicService->findTurnouts();
+    railroadLogicService->updateTurnouts();
 
     loopBottomSplitter = nullptr;
     loopTopSplitter = nullptr;
@@ -143,6 +149,27 @@ void tests::validateSplitterSwitching(SplitterAnnotation *sa, int activatedTrack
         QCOMPARE(controller->triggerCount[sa->getRelay(0)], 0);
         QCOMPARE(controller->triggerCount[sa->getRelay(1)], 1);
     }
+}
+
+void tests::validateGraph()
+{
+    Railroad* rr = this->railroadLogicService->getRailroad();
+    auto nodes = rr->getGraph()->getNodes();
+    auto edges = rr->getGraph()->getEdges();
+
+    QCOMPARE(nodes.size(), 6);
+    QCOMPARE(edges.size(), 7);
+
+    TrainPosition source = this->railroadLogicService->findClosestPoint(QPoint(853,816));
+    TrainPosition dest = this->railroadLogicService->findClosestPoint(QPoint(119,186));
+    auto path = rr->findShortestPath(source.point, dest.point);
+    QCOMPARE(path.size(), 3);
+    QCOMPARE(((GraphNode<SplitterAnnotation*>*)((GraphEdge<QPolygon>*)(path[0].edge))->node1)->data, nullptr);
+    QCOMPARE(((GraphNode<SplitterAnnotation*>*)((GraphEdge<QPolygon>*)(path[0].edge))->node2)->data, loopTopSplitter);
+    QCOMPARE(((GraphNode<SplitterAnnotation*>*)((GraphEdge<QPolygon>*)(path[1].edge))->node1)->data, outterSplitter);
+    QCOMPARE(((GraphNode<SplitterAnnotation*>*)((GraphEdge<QPolygon>*)(path[1].edge))->node2)->data, loopTopSplitter);
+    QCOMPARE(((GraphNode<SplitterAnnotation*>*)((GraphEdge<QPolygon>*)(path[2].edge))->node1)->data, nullptr);
+    QCOMPARE(((GraphNode<SplitterAnnotation*>*)((GraphEdge<QPolygon>*)(path[2].edge))->node2)->data, outterSplitter);
 }
 
 void tests::checkTrackAssignment()
@@ -265,7 +292,7 @@ void tests::goFromInnerToOutter()
     railroadLogicService->gotoWaypoint();
 
     auto actionList = railroadLogicService->getActionRunner()->getActions();
-    QCOMPARE(actionList.size(),5);
+    QCOMPARE(actionList.size(),9);
 
     QCOMPARE(dynamic_cast<MoveToSplitterAction*>(actionList[0])->getCurrentTrack(), "inner");
     QCOMPARE(dynamic_cast<MoveToSplitterAction*>(actionList[0])->getReverse(), true);
@@ -277,15 +304,32 @@ void tests::goFromInnerToOutter()
 
     QCOMPARE(dynamic_cast<MoveToSplitterAction*>(actionList[2])->getCurrentTrack(), "main");
     QCOMPARE(dynamic_cast<MoveToSplitterAction*>(actionList[2])->getReverse(), false);
-    QCOMPARE(dynamic_cast<MoveToSplitterAction*>(actionList[2])->getTargetTrack(), "outter");
+    QCOMPARE(dynamic_cast<MoveToSplitterAction*>(actionList[2])->getTargetTrack(), "loop");
 
-    QCOMPARE(dynamic_cast<ChangeTrackAction*>(actionList[3])->getSplitterAnnotation(), outterSplitter);
-    QCOMPARE(dynamic_cast<ChangeTrackAction*>(actionList[3])->getCommingFromT0(), false);
-    QCOMPARE(dynamic_cast<ChangeTrackAction*>(actionList[3])->getTargetTrack(), "outter");
+    QCOMPARE(dynamic_cast<ChangeTrackAction*>(actionList[3])->getSplitterAnnotation(), loopBottomSplitter);
+    QCOMPARE(dynamic_cast<ChangeTrackAction*>(actionList[3])->getCommingFromT0(), true);
+    QCOMPARE(dynamic_cast<ChangeTrackAction*>(actionList[3])->getTargetTrack(), "loop");
 
-    QCOMPARE(dynamic_cast<MoveToAction*>(actionList[4])->getTargetPosition(), railroadLogicService->getTrackWaypoint());
-    QCOMPARE(dynamic_cast<MoveToAction*>(actionList[4])->getReverse(), true);
-    QCOMPARE(dynamic_cast<MoveToAction*>(actionList[4])->getCurrentTrack(), "outter");
+    QCOMPARE(dynamic_cast<MoveToSplitterAction*>(actionList[4])->getCurrentTrack(), "loop");
+    QCOMPARE(dynamic_cast<MoveToSplitterAction*>(actionList[4])->getReverse(), false);
+    QCOMPARE(dynamic_cast<MoveToSplitterAction*>(actionList[4])->getTargetTrack(), "main");
+
+    QCOMPARE(dynamic_cast<ChangeTrackAction*>(actionList[5])->getSplitterAnnotation(), loopTopSplitter);
+    QCOMPARE(dynamic_cast<ChangeTrackAction*>(actionList[5])->getCommingFromT0(), false);
+    QCOMPARE(dynamic_cast<ChangeTrackAction*>(actionList[5])->getTargetTrack(), "main");
+
+    QCOMPARE(dynamic_cast<MoveToSplitterAction*>(actionList[6])->getCurrentTrack(), "main");
+    QCOMPARE(dynamic_cast<MoveToSplitterAction*>(actionList[6])->getReverse(), true);
+    QCOMPARE(dynamic_cast<MoveToSplitterAction*>(actionList[6])->getTargetTrack(), "outter");
+
+    QCOMPARE(dynamic_cast<ChangeTrackAction*>(actionList[7])->getSplitterAnnotation(), outterSplitter);
+    QCOMPARE(dynamic_cast<ChangeTrackAction*>(actionList[7])->getCommingFromT0(), true);
+    QCOMPARE(dynamic_cast<ChangeTrackAction*>(actionList[7])->getTargetTrack(), "outter");
+
+
+    QCOMPARE(dynamic_cast<MoveToAction*>(actionList[8])->getTargetPosition(), railroadLogicService->getTrackWaypoint());
+    QCOMPARE(dynamic_cast<MoveToAction*>(actionList[8])->getReverse(), true);
+    QCOMPARE(dynamic_cast<MoveToAction*>(actionList[8])->getCurrentTrack(), "outter");
 
     
     validateSplitterSwitching(innerSplitter, 1, false);  
@@ -293,13 +337,16 @@ void tests::goFromInnerToOutter()
     validateSplitterSwitching(innerSplitter, 2, false);   // Go back in: splitter must now make traffic go to main
     validateSplitterSwitching(innerSplitter, 0, true);   // This one will trigger an action change
 
-    validateSplitterSwitching(loopBottomSplitter, 2, false);
+    validateSplitterSwitching(loopBottomSplitter, 1, false);
     validateSplitterSwitching(loopBottomSplitter, 0, true);
 
-    validateSplitterSwitching(outterSplitter, 1, false);  // reach splitter, it must activate fork
-    validateSplitterSwitching(outterSplitter, 2, true);  // go after splitter, nothing would change. But we will change action
-    validateSplitterSwitching(outterSplitter, 2, false);  //  go inside outter track, splitter should not fork
-    validateSplitterSwitching(outterSplitter, 0, true);  //  go inside outter track, splitter should not fork
+    validateSplitterSwitching(loopTopSplitter, 1, false);
+    validateSplitterSwitching(loopTopSplitter, 0, true);
+    validateSplitterSwitching(loopTopSplitter, 2, false);
+    validateSplitterSwitching(loopTopSplitter, 0, true);
+
+    validateSplitterSwitching(outterSplitter, 2, false);  // reach splitter, it must activate fork
+    validateSplitterSwitching(outterSplitter, 0, true);  // go after splitter, nothing would change. But we will change action
 
 
 }
@@ -355,7 +402,7 @@ void tests::goFromLoopEndToMainAfterOutter()
     railroadLogicService->gotoWaypoint();
 
     auto actionList = railroadLogicService->getActionRunner()->getActions();
-    QCOMPARE(actionList.size(),3);
+    QCOMPARE(actionList.size(),5);
 
     QCOMPARE(dynamic_cast<MoveToSplitterAction*>(actionList[0])->getCurrentTrack(), "loop");
     QCOMPARE(dynamic_cast<MoveToSplitterAction*>(actionList[0])->getReverse(), false);
@@ -365,9 +412,17 @@ void tests::goFromLoopEndToMainAfterOutter()
     QCOMPARE(dynamic_cast<ChangeTrackAction*>(actionList[1])->getCommingFromT0(), false);
     QCOMPARE(dynamic_cast<ChangeTrackAction*>(actionList[1])->getTargetTrack(), "main");
 
-    QCOMPARE(dynamic_cast<MoveToAction*>(actionList[2])->getTargetPosition(), railroadLogicService->getTrackWaypoint());
-    QCOMPARE(dynamic_cast<MoveToAction*>(actionList[2])->getReverse(), true);
-    QCOMPARE(dynamic_cast<MoveToAction*>(actionList[2])->getCurrentTrack(), "main");
+    QCOMPARE(dynamic_cast<MoveToSplitterAction*>(actionList[2])->getCurrentTrack(), "main");
+    QCOMPARE(dynamic_cast<MoveToSplitterAction*>(actionList[2])->getReverse(), true);
+    QCOMPARE(dynamic_cast<MoveToSplitterAction*>(actionList[2])->getTargetTrack(), "main");
+
+    QCOMPARE(dynamic_cast<ChangeTrackAction*>(actionList[3])->getSplitterAnnotation(), outterSplitter);
+    QCOMPARE(dynamic_cast<ChangeTrackAction*>(actionList[3])->getCommingFromT0(), true);
+    QCOMPARE(dynamic_cast<ChangeTrackAction*>(actionList[3])->getTargetTrack(), "main");
+
+    QCOMPARE(dynamic_cast<MoveToAction*>(actionList[4])->getTargetPosition(), railroadLogicService->getTrackWaypoint());
+    QCOMPARE(dynamic_cast<MoveToAction*>(actionList[4])->getReverse(), true);
+    QCOMPARE(dynamic_cast<MoveToAction*>(actionList[4])->getCurrentTrack(), "main");
 
     
     validateSplitterSwitching(loopTopSplitter, 1, false);
@@ -431,7 +486,7 @@ void tests::goFromOutterToFarEnd()
     SplitterAnnotation *firstSplitter = outterSplitter;
 
     auto actionList = railroadLogicService->getActionRunner()->getActions();
-    QCOMPARE(actionList.size(),3);
+    QCOMPARE(actionList.size(),5);
 
     QCOMPARE(dynamic_cast<MoveToSplitterAction*>(actionList[0])->getCurrentTrack(), "outter");
     QCOMPARE(dynamic_cast<MoveToSplitterAction*>(actionList[0])->getReverse(), false);
@@ -441,9 +496,17 @@ void tests::goFromOutterToFarEnd()
     QCOMPARE(dynamic_cast<ChangeTrackAction*>(actionList[1])->getCommingFromT0(), false);
     QCOMPARE(dynamic_cast<ChangeTrackAction*>(actionList[1])->getTargetTrack(), "main");
 
-    QCOMPARE(dynamic_cast<MoveToAction*>(actionList[2])->getTargetPosition(), railroadLogicService->getTrackWaypoint());
-    QCOMPARE(dynamic_cast<MoveToAction*>(actionList[2])->getReverse(), false);
-    QCOMPARE(dynamic_cast<MoveToAction*>(actionList[2])->getCurrentTrack(), "main");
+    QCOMPARE(dynamic_cast<MoveToSplitterAction*>(actionList[2])->getCurrentTrack(), "main");
+    QCOMPARE(dynamic_cast<MoveToSplitterAction*>(actionList[2])->getReverse(), false);
+    QCOMPARE(dynamic_cast<MoveToSplitterAction*>(actionList[2])->getTargetTrack(), "main");
+
+    QCOMPARE(dynamic_cast<ChangeTrackAction*>(actionList[3])->getSplitterAnnotation(), loopTopSplitter);
+    QCOMPARE(dynamic_cast<ChangeTrackAction*>(actionList[3])->getCommingFromT0(), false);
+    QCOMPARE(dynamic_cast<ChangeTrackAction*>(actionList[3])->getTargetTrack(), "main");
+
+    QCOMPARE(dynamic_cast<MoveToAction*>(actionList[4])->getTargetPosition(), railroadLogicService->getTrackWaypoint());
+    QCOMPARE(dynamic_cast<MoveToAction*>(actionList[4])->getReverse(), false);
+    QCOMPARE(dynamic_cast<MoveToAction*>(actionList[4])->getCurrentTrack(), "main");
 
     validateSplitterSwitching(outterSplitter, 2, false);
     validateSplitterSwitching(outterSplitter, 0, true);

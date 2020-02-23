@@ -1,3 +1,3 @@
 #!/bin/sh
 
-LD_LIBRARY_PATH=./lib ./tests/tests
+LD_LIBRARY_PATH=./lib ./tests/tests $@

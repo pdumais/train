@@ -42,8 +42,11 @@ private:
         QPolygon object;
         QPoint center;
         QLine line;
-        TrainPart *next;
-        TrainPart *previous;
+
+        // There can be at most 2 links. But we don't know which one is behind or after
+        // because we don't know what the direction of the train is
+        TrainPart *link1;
+        TrainPart *link2;
     };
 
     TrainPart* locomotive;
