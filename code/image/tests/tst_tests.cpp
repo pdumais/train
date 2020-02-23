@@ -1,6 +1,5 @@
 #include <QtTest>
 
-#include <actions/ActivateTurnoutAction.h>
 #include <actions/MoveToAction.h>
 
 #include "MockDisplayService.h"
@@ -443,7 +442,7 @@ void tests::goFromOutterToFarEnd()
 
 void tests::validateTrainObject()
 {
-    int w = 10;
+    int w = 100;
 
     this->vision->wagonsList.append(buildCVObject(QPoint(1000-w-MAXIMUM_WAGON_CONNECTION_SIZE+1, 500), w));
     this->vision->wagonsList.append(buildCVObject(QPoint(1000-(2*w)-MAXIMUM_WAGON_CONNECTION_SIZE+1, 500), w));

@@ -8,7 +8,6 @@
 #include <QPoint>
 #include <QDebug>
 #include "ActionRunner.h"
-#include <actions/ActivateTurnoutAction.h>
 #include <actions/MoveToAction.h>
 #include "displayservice.h"
 #include "Train.h"

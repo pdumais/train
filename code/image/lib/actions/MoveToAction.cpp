@@ -68,6 +68,16 @@ void MoveToAction::onEnterTurnout(SplitterAnnotation* sa)
             qDebug("we're exiting through T2. Activate fork");
             this->railroadLogicService->activateSplitter(sa,true);
         }
+        else if (sa->getTrack1() == this->targetTrack)
+        {
+            qDebug("we're exiting through T1. Deactivate fork");
+            this->railroadLogicService->activateSplitter(sa,false);
+        }
+        else if (sa->getTrack2() == this->targetTrack)
+        {
+            qDebug("we're exiting through T2. Activate fork");
+            this->railroadLogicService->activateSplitter(sa,true);
+        }
     }
     else
     {

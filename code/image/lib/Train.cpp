@@ -3,6 +3,7 @@
 #include <QRegion>
 #include <QDebug>
 #include "constants.h"
+#include "math.h"
 
 Train::Train(CVObject loco, QObject *parent) : QObject(parent)
 {
@@ -77,10 +78,10 @@ QVector<Annotation*> Train::inRange(const QVector<Annotation*>& annotations) con
 //      1 if l1's start is tied to l2
 int Train::areLinked(QLine l1, QLine l2)
 {
-    if ((l1.p1()-l2.p1()).manhattanLength() < MAXIMUM_WAGON_CONNECTION_SIZE) return 1;
-    if ((l1.p1()-l2.p2()).manhattanLength() < MAXIMUM_WAGON_CONNECTION_SIZE) return 1;
-    if ((l1.p2()-l2.p1()).manhattanLength() < MAXIMUM_WAGON_CONNECTION_SIZE) return -1;
-    if ((l1.p2()-l2.p2()).manhattanLength() < MAXIMUM_WAGON_CONNECTION_SIZE) return -1;
+    if (HYPOTHENUS((l1.p1()-l2.p1())) < MAXIMUM_WAGON_CONNECTION_SIZE) return 1;
+    if (HYPOTHENUS((l1.p1()-l2.p2())) < MAXIMUM_WAGON_CONNECTION_SIZE) return 1;
+    if (HYPOTHENUS((l1.p2()-l2.p1())) < MAXIMUM_WAGON_CONNECTION_SIZE) return -1;
+    if (HYPOTHENUS((l1.p2()-l2.p2())) < MAXIMUM_WAGON_CONNECTION_SIZE) return -1;
 
     return 0;
 }
@@ -95,13 +96,11 @@ void Train::sortTrainParts(TrainPart* w)
     {
         this->locomotive->next = w;
         w->previous = this->locomotive;
-        return;
     }
     else if (r == -1)
     {
         this->locomotive->previous = w;
         w->next = this->locomotive;
-        return;
     }
 
     for (TrainPart* tp : this->wagons)

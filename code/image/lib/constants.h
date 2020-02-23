@@ -14,7 +14,7 @@
 #define DETECTION_SQUARE_SIZE 400
 #define ANNOTATION_DETECTION_SQUARE_SIZE 600
 #define DETECT_RECT 20
-#define MAXIMUM_WAGON_CONNECTION_SIZE 70
+#define MAXIMUM_WAGON_CONNECTION_SIZE 50
 
 #define SPEED_SLOW 75
 #define SPEED_NORMAL 120
@@ -34,6 +34,8 @@
 /////////////////////////////////////
 
 #define DEBUGIMG8(img) {QImage image(img.data,img.cols,img.rows, static_cast<int>(img.step), QImage::Format_Grayscale8); DisplayService::debugPixmap->setPixmap(QPixmap::fromImage(image).copy());}
+
+#define HYPOTHENUS(p) sqrt((p.x()*p.x())+(p.y()*p.y()))
 
 #define MARKER_TYPE_CROSSING 1
 
