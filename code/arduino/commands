@@ -1,0 +1,8 @@
+a-j 1/0  for relay
+    ie: a1, b0, c1, d0, e1
+    command "2" triggers relay for only 250ms
+    
+
+g-m 0/255  for PWM
+
+

@@ -1,0 +1,6 @@
+*.o
+*.d
+moc_*
+code/arduino/firmware.*
+*.map
+build-train-*

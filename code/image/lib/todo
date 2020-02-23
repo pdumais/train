@@ -1,0 +1,89 @@
+identify train using dot with letter on it. "A" is the locomotive
+
+display live feed of track
+learn button:
+    indicate the track number we will be learning
+    automatic:
+        start moving train record positions of train 
+            until we have looped or until we manually press "stop"
+    manual:
+        using mouse
+
+annotate:
+    using mouse, indicate:
+        - splitter: and say for which tracks in transfers to
+        - crossings
+
+save learned map on disk
+
+
+loading:
+    overlay learned tracks on image so that we can adjust camera to match
+    automatically make corrections when train is running if we see we are offset
+
+
+
+------------------
+
+
+using pre-recorded video:
+    detect track
+        it needs to know where tracks are because that's how we'll know if an obect is close to the service track or the main track
+    show track on screen
+    detect train
+        show on screen as a different color
+    detect color dot.
+        show on screen with rectangle around it
+
+    draw line with distance in centimeters
+        put a pre-measured square on floor to benchmark distance
+        from train to dot
+        track to dot
+
+
+    use camera instead of pre-recorded video
+    control train:
+        tell it to go to dot
+        tell it to go to an arbitrary place on screen
+        close road crossing when near
+        move from service track to main track using track shifter        
+
+
+-----------------
+
+
+        - QT video reader from wireless camera feed
+            - use QVideoProbe to get frames and analyze. Show on screen
+
+-----------------
+Detection solutions
+    - pure image processing: detect tracks by detecting features. Could be hard because there is a lot of noise around tracks
+        need to apply several algo on top of each other. but which ones?
+            1- filter out everything that is not black
+            2- Use canny edge detection
+
+    - IR leds:
+        put IR leds on each track segments
+        put IR leds on point of interest (use different intensity to differentiate)
+    - color detection
+        put color dots on tracks and points of interest. The advantage is that we can color code things
+        
+        
+
+
+
+
+
+
+
+
+
+Annotation [ "{958992cd-68c1-4a21-9ec6-5862276a52dd}" ] assigned relay  1
+Annotation [ "{958992cd-68c1-4a21-9ec6-5862276a52dd}" ] assigned relay  2
+Annotation [ "{f424c2fa-7427-43ed-879c-57b1f3a925e2}" ] assigned relay  3
+Annotation [ "{f424c2fa-7427-43ed-879c-57b1f3a925e2}" ] assigned relay  4
+Annotation [ "{7f4877e2-e79d-47c5-b8b1-3786cd94ae02}" ] assigned relay  5
+Annotation [ "{813d7218-f721-4324-9d53-d1213f467909}" ] assigned relay  6
+Annotation [ "{813d7218-f721-4324-9d53-d1213f467909}" ] assigned relay  7
+Annotation [ "{5f24e647-fdd8-4fbd-bea1-667d89801cff}" ] assigned relay  8
+Annotation [ "{5f24e647-fdd8-4fbd-bea1-667d89801cff}" ] assigned relay  9

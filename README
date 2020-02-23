@@ -1,0 +1,84 @@
+dependencies:
+    libtesseract-dev
+    libopencv-dev
+    qt5
+
+
+when detecting loco/wagon, we restrict the detection of objects on the area known to be the track. 
+This allows noise outide the track to be elliminated. But while the track is getting learned, the locomotive
+is being searched in the whole image. Therefore, during the learning process, it might be necessary to stage 
+the area manually by covering any objects that could interfere and possibly using a bigger sticker.
+
+
+
+------------------------------------------------------------------------------------
+
+
+
+ /--------B-----------------------A----\
+|          \                       \    \
+|           |    |                 |    |
+|           |    |                 |    |
+|           |    |                 |
+|          /    /                  |
+ \--------C----D------------------/
+Turnouts: t1 is always the straight track, and t2 is the fork
+    A: t1=outter, t2=main
+    B: t1=main, t2=loop
+    C: t1=main, t2=loop
+    D: t1=main, t2=inner
+
+
+So to move to another track:
+    move (rev/fwd) to before/after turnout
+    activate turnout
+    move (rev/fwd) to after/before turnout
+    activate turnout in opposite way
+    move to destination on track (could be another turnout or waypoint)
+
+if "loop" would be a inner loop (without B), how do we know wheter we wanna backup or fwd to splitter?
+    need to find shortest path between both scenarios
+same thing for when we wanna reach inner parking
+
+    track1 tells use if we need to fwd/rev into the turnout, but does not tell use
+    the direction to use to first reach it.
+    So when calculating distance between 2 points on track (getDistanceOnTrack()):
+        check if track loops:
+            to know if poly loops: look at how close start and end are)
+        if not loop
+            calculate distance going in the direction defined by track1
+        if loop:
+            calculate fwd/rev and choose shortest one
+        in both cases, we must return the distance+direction (negative number?) 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
