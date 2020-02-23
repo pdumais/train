@@ -43,6 +43,7 @@ void DisplayService::init(QGraphicsView* view)
     this->camera->start();
 
     this->debugPixmap = new QGraphicsPixmapItem();
+    this->debugPixmap->setZValue(300);
     this->createTrackItem("LearningTrack", ViewType::Learning);
     this->createPixmapItem("_waypoint", ViewType::Operation, ":/waypoint.png");
     this->addGraphicsItem("_waypointline", new QGraphicsLineItem(), ViewType::Operation);
@@ -168,7 +169,6 @@ void DisplayService::setViewType(ViewType vt)
         this->view->scene()->clearSelection();
     }
     scene->addItem(this->videoItem);
-    scene->addItem(this->debugPixmap);
     for (auto &it : this->items)
     {
         if (it.viewType == ViewType::All || it.viewType == vt)
@@ -176,6 +176,7 @@ void DisplayService::setViewType(ViewType vt)
             scene->addItem(it.item);
         }
     }
+    scene->addItem(this->debugPixmap);
 
     this->view->setScene(scene);
 }

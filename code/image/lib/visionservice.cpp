@@ -427,7 +427,7 @@ void VisionService::processFrame(QVideoFrame frame)
 {
     cv::Point2f v2f[4];
     cv::Point v[4];
-    cv::Mat tmp;
+    cv::Mat tmp, tmp2, tmp3;
     cv::Mat masked;
 
     PerformanceMonitor::tic("VisionService::processFrame");
@@ -441,10 +441,15 @@ void VisionService::processFrame(QVideoFrame frame)
     cv::cvtColor(mat, grayImage, cv::COLOR_BGR2GRAY);
     cv::cvtColor(mat, hsvImage, cv::COLOR_BGR2HSV);
 
+
     // Get the track-masked image
     mat.copyTo(tmp, this->trackMask);
     cv::cvtColor(tmp, masked, cv::COLOR_BGR2HSV);
     // At this point we have 2 images: "hsvImage" which is the whole image. and "masked" which is restricted on the map
+
+//cv::adaptiveThreshold(grayImage, tmp3, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY, 5,3);
+//DEBUGIMG8(tmp3)
+
 
 #if not defined(DEBUG_LOCO) && not defined(DEBUG_WAGONS)
     if (this->annotationDetectionEnabled)
