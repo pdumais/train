@@ -131,10 +131,19 @@ QPolygon Train::getLocomotive()
 QVector<QPolygon> Train::getLinkedWagons() const
 {
     QVector<QPolygon> ret;
-    for (auto tp : this->wagons)
+
+    TrainPart* tp = this->locomotive->next;
+    while (tp)
     {
-        if (!tp->previous && !tp->next) continue;
         ret.append(tp->object);
+        tp = tp->next;
+    }
+
+    tp = this->locomotive->previous;
+    while (tp)
+    {
+        ret.append(tp->object);
+        tp = tp->previous;
     }
 
     return ret;
@@ -142,11 +151,17 @@ QVector<QPolygon> Train::getLinkedWagons() const
 
 QVector<QPolygon> Train::getUnlinkedWagons() const
 {
+    // TODO: need to optimize this
     QVector<QPolygon> ret;
-    for (auto tp : this->wagons)
+    QVector<QPolygon> linked = this->getLinkedWagons();
+    int count = this->wagons.size() - linked.size();
+    for (int i = 0; (i < this->wagons.size() && count > 0); i++)
     {
-        if (tp->previous || tp->next) continue;
-        ret.append(tp->object);
+        auto obj = this->wagons[i]->object;
+        if (linked.contains(obj)) continue;
+
+        count--;
+        ret.append(obj);
     }
 
     return ret;

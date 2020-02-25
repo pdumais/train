@@ -491,6 +491,7 @@ void VisionService::setTrackMask(QVector<QPolygon> tracks)
     /// manually draw each segment. Becuase drawPolygon would close the shape
     for (QPolygon& poly : tracks)
     {
+        if (poly.isEmpty()) continue;
         QPoint first = poly.takeFirst();
         QPainterPath path(first);
         for (auto point : poly)
