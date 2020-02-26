@@ -9,6 +9,8 @@
 #include <QDebug>
 #include "ActionRunner.h"
 #include <actions/MoveToAction.h>
+#include <actions/MoveToSplitterAction.h>
+#include <actions/ChangeTrackAction.h>
 #include "displayservice.h"
 #include "Train.h"
 #include "PerformanceMonitor.h"
@@ -17,6 +19,7 @@ RailroadLogicService::RailroadLogicService(ITrainController *ctrl, IVisionServic
 {
     this->actionRunner = new ActionRunner();
     this->actionRunner->setRailroadService(this);
+    this->actionRunner->setConfiguration(configuration);
     this->resumeSpeed = 0;
     this->controller = ctrl;
     this->vision = vision;
@@ -457,7 +460,6 @@ void RailroadLogicService::gotoWaypoint()
     if (nodes.children.size() > 0)
     {
         SplitterSearchNode n = nodes.children[0];
-        bool lastDirection;
         while (true)
         {
             if (n.children.size() > 1)
@@ -467,47 +469,11 @@ void RailroadLogicService::gotoWaypoint()
 
             QString sourceTrack = (n.targetTrack == n.sa->getTrack1())?n.sa->getTrack2():n.sa->getTrack1();
 
-            bool exitingSplitter = (n.reverseToReachSplitter && !n.sa->getClockWise()) ||
-                                   (!n.reverseToReachSplitter && n.sa->getClockWise());
-            bool reverseToReachTrack = (!n.sa->getClockWise() && exitingSplitter) || (n.sa->getClockWise() && exitingSplitter);
-            bool fwdToSplitter = !n.reverseToReachSplitter;
+            bool commingFromT0 = n.reverseToReachSplitter == n.sa->getClockWise();
+            this->actionRunner->addAction(new MoveToSplitterAction(sourceTrack, n.targetTrack, n.reverseToReachSplitter));
+            this->actionRunner->addAction(new ChangeTrackAction(n.sa, n.targetTrack, commingFromT0));
 
-            bool stopAfter = exitingSplitter;
 
-            // First action is to reach the splitter
-            if (stopAfter)
-            {
-                this->actionRunner->addAction(new MoveToAction(n.sa->getPosition(),
-                            sourceTrack,
-                            n.sa->getInputTrack(),
-                            n.reverseToReachSplitter,
-                            SPLITTER_RADIUS,
-                            MoveToAction::StopPosition::After));
-
-                lastDirection = n.reverseToReachSplitter;
-                // If this still doesn't bring us to where we wanted to go, it means we have to enter
-                // the splitter in the opposite direction to reach the other track
-                if (n.sa->getInputTrack() != n.targetTrack)
-                {
-                    this->actionRunner->addAction(new MoveToAction(n.sa->getPosition(),
-                                n.sa->getInputTrack(),
-                                n.targetTrack,
-                                !n.reverseToReachSplitter,
-                                SPLITTER_RADIUS,
-                                MoveToAction::StopPosition::After));
-                    lastDirection = !n.reverseToReachSplitter;
-                }
-            }
-            else
-            {
-                this->actionRunner->addAction(new MoveToAction(n.sa->getPosition(),
-                            sourceTrack,
-                            n.targetTrack,
-                            n.reverseToReachSplitter,
-                            SPLITTER_RADIUS,
-                            MoveToAction::StopPosition::After));
-                lastDirection = n.reverseToReachSplitter;
-            }
             lastPosition = n.sa->getPosition();
 
             if (n.end) break;
@@ -516,26 +482,12 @@ void RailroadLogicService::gotoWaypoint()
     }
 
     Track* finalTrack = this->configuration->getTrack(this->waypoint.track->getName());
-    //if (finalTrack->loops())
-    {
-        int revDistance = this->getDistanceOnTrack(finalTrack, lastPosition, this->waypoint.point, true);
-        int fwdDistance = this->getDistanceOnTrack(finalTrack, lastPosition, this->waypoint.point, false);
-        this->actionRunner->addAction(new MoveToAction(this->waypoint.point,
-                    this->waypoint.track->getName(),
-                    this->waypoint.track->getName(),
-                    (revDistance<fwdDistance),
-                    DETECT_RECT,
-                    MoveToAction::StopPosition::Within));
-    }
-    /*else
-    {
-        this->actionRunner->addAction(new MoveToAction(this->waypoint.point,
-                    this->waypoint.track->getName(),
-                    this->waypoint.track->getName(),
-                    lastDirection,
-                    DETECT_RECT,
-                    MoveToAction::StopPosition::Within));
-    }*/
+    int revDistance = this->getDistanceOnTrack(finalTrack, lastPosition, this->waypoint.point, true);
+    int fwdDistance = this->getDistanceOnTrack(finalTrack, lastPosition, this->waypoint.point, false);
+    this->actionRunner->addAction(new MoveToAction(this->waypoint.track->getName(),
+                this->waypoint.point,
+                DETECT_RECT,
+                (revDistance<fwdDistance)));
 
     this->actionRunner->run();
 
@@ -585,10 +537,6 @@ void RailroadLogicService::updateTracks()
 
 void RailroadLogicService::updateAnnotations()
 {
-/*QImage image(VIDEO_WIDTH, VIDEO_HEIGHT, QImage::Format_RGB32);
-QPainter p(&image);
-p.setPen(QPen(Qt::blue,5));*/
-
     for (Annotation* a : this->configuration->getAnnotations())
     {
         int radius = SPLITTER_RADIUS;
@@ -605,21 +553,11 @@ p.setPen(QPen(Qt::blue,5));*/
         e->setPos(a->getPosition()-e->rect().center().toPoint());
         e->setZValue(50); //TODO: use enum for that value
         e->setData(1,a->getName());
-
-/*QPoint center=a->getPosition();
-QPolygon test(QRect(center-QPoint(ANNOTATION_RADIUS,ANNOTATION_RADIUS),center+QPoint(ANNOTATION_RADIUS,ANNOTATION_RADIUS)),true);
-QPolygon test2 = test.intersected(this->configuration->getTracks()[0]->getPolygon());
-p.drawPolygon(test2);*/
-
     }
-//DisplayService::debugPixmap->setPixmap(QPixmap::fromImage(image).copy());
 }
 
 void RailroadLogicService::findTurnouts()
 {
-//QImage image(VIDEO_WIDTH, VIDEO_HEIGHT, QImage::Format_RGB32);
-//QPainter p(&image);
-
     // Remove all splitters from display and then delete them from config
     for (Annotation* a : this->configuration->getAnnotations())
     {
@@ -756,5 +694,4 @@ void RailroadLogicService::findTurnouts()
             }
         }
     }
-//DisplayService::debugPixmap->setPixmap(QPixmap::fromImage(image).copy());
 }

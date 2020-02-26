@@ -12,6 +12,11 @@ void ActionRunner::setRailroadService(RailroadLogicService* rrls)
     this->railroadService = rrls;
 }
 
+void ActionRunner::setConfiguration(Configuration* conf)
+{
+    this->configuration = conf;
+}
+
 void ActionRunner::addAction(Action* action)
 {
     this->actions.append(action);
@@ -78,12 +83,15 @@ void ActionRunner::runNextAction()
 
     this->currentAction = this->actions.takeFirst();
     qDebug() << "Running next Action " << this->currentAction;
-    this->currentAction->execute(this->railroadService,[=](){
-            //QTimer::singleShot(1000,[=](){
-                this->runNextAction();
-            //});
-            //delete this->currentAction;
-            //this->currentAction = nullptr;
+
+    QVector<Annotation*> inRange;
+    for (auto it : this->configuration->getAnnotations())
+    {
+        if (it->getInRange()) inRange.append(it);
+    }
+
+    this->currentAction->execute(this->railroadService, inRange,[=](){
+        this->runNextAction();
     });
 }
 

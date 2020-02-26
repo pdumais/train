@@ -75,7 +75,7 @@ private:
     void getRectWagonMask(std::vector<cv::RotatedRect>& wagons, cv::Mat& mask);
     void identifyWagons(std::vector<cv::RotatedRect>& wagons, cv::Mat& grayImage);
     cv::RotatedRect getEnlargedRect(cv::RotatedRect r, int newW, int newH);
-    std::pair<cv::Point,cv::Point> getLine(cv::RotatedRect r);
+    QLineF getLine(cv::RotatedRect r);
 
     bool detectWagons(cv::Mat& mat);
     bool detectLocomotive(cv::Mat& mat, DetectionSpecs& specs);

@@ -36,7 +36,9 @@ SOURCES += \
     actions/MoveToAction.cpp \
     Train.cpp \
     CollisionMatrix.cpp \
-    PerformanceMonitor.cpp
+    PerformanceMonitor.cpp \
+    actions/ChangeTrackAction.cpp \
+    actions/MoveToSplitterAction.cpp
     visionservice.cpp \
 
 
@@ -67,7 +69,9 @@ HEADERS += \
     actions/MoveToAction.h \
     Train.h \
     CollisionMatrix.h \
-    PerformanceMonitor.h
+    PerformanceMonitor.h \
+    actions/ChangeTrackAction.h \
+    actions/MoveToSplitterAction.h
     visionservice.h \
 
 

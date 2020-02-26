@@ -90,7 +90,7 @@ QVideoProbe* VisionService::probe()
     return this->videoProbe;
 }
 
-std::pair<cv::Point,cv::Point> VisionService::getLine(cv::RotatedRect r)
+QLineF VisionService::getLine(cv::RotatedRect r)
 {
     cv::Point2f points[4];
     cv::Point2f c;
@@ -120,7 +120,17 @@ std::pair<cv::Point,cv::Point> VisionService::getLine(cv::RotatedRect r)
     lp1 += lpcdelta;
     lp2 += lpcdelta;
 
-    return std::make_pair(lp1,lp2);
+    QLineF line(QPointF(lp1.x, lp1.y),QPointF(lp2.x,lp2.y));
+
+    //we wanna make sure that all lines point in the same direction.
+    //That is, the order or p1,p2 is the same  all time.
+    //So force every line to be in Q1 and Q4
+    if (line.angle() > 90 && line.angle() < 270)
+    {
+        line.setPoints(line.p2(), line.p1());
+    }
+
+    return line;
 
 }
 
@@ -143,11 +153,11 @@ CVObject VisionService::locomotive()
 
     cv::Point2f c;
     c = r.center;
-    auto [l1,l2] = this->getLine(r);
+    auto line = this->getLine(r);
     CVObject cvo;
     cvo.setCenter(QPoint(c.x,c.y));
     cvo.setPolygon(poly);
-    cvo.setLine(QLine(QPoint(l1.x,l1.y),QPoint(l2.x,l2.y)));
+    cvo.setLine(line.toLine());
 
     return cvo;
 }
@@ -169,11 +179,11 @@ QVector<CVObject> VisionService::wagons()
 
         cv::Point2f c;
         c = o.rect.center;
-        auto [l1,l2] = this->getLine(o.rect);
+        QLineF line = this->getLine(o.rect);
         CVObject cvo;
         cvo.setCenter(QPoint(c.x,c.y));
         cvo.setPolygon(poly);
-        cvo.setLine(QLine(QPoint(l1.x,l1.y),QPoint(l2.x,l2.y)));
+        cvo.setLine(line.toLine());
         ret.push_back(cvo);
     }
 

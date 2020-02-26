@@ -10,36 +10,24 @@
 class MoveToAction : public Action
 {
 public:
-    enum class StopPosition
-    {
-        Before,
-        Within,
-        After
-    };
-
-    MoveToAction(QPoint pos, QString currentTrack, QString targetTrack, bool reverse=false, int radius=DETECT_RECT, StopPosition where=StopPosition::Within);
+    MoveToAction(QString currentTrack, QPoint pos, int radius, bool reverse=false);
 
 
-    QString getTargetTrack();
-    int getRadius();
-    QPoint getPosition();
-    StopPosition getWhere();
+    QPoint getTargetPosition();
     bool getReverse();
+    QString getCurrentTrack();
 
     void onEnterTurnout(SplitterAnnotation* sa) override;
     void onTrainMoved(Train* train) override;
 
 private:
-    StopPosition where;
-    int radius;
-    QPoint pos;
-    bool enteredZone;
     bool reverse;
     QString currentTrack;
-    QString targetTrack;
+    QPoint pos;
+    int radius;
 
 protected:
-    void start() override;
+    void start(QVector<Annotation*> annotationsInRange) override;
 
 };
 

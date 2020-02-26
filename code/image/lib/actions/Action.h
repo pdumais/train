@@ -13,7 +13,7 @@ public:
     Action();
     virtual ~Action() {}
 
-    virtual void execute(RailroadLogicService* railroadLogicService, std::function<void()> callBack);
+    virtual void execute(RailroadLogicService* railroadLogicService, QVector<Annotation*> annotationsInRange, std::function<void()> callBack);
 
     virtual void onEnterTurnout(SplitterAnnotation* sa);
     virtual void onLeaveTurnout(SplitterAnnotation* sa);
@@ -22,7 +22,7 @@ public:
 protected:
     RailroadLogicService* railroadLogicService;
     void done();
-    virtual void start();
+    virtual void start(QVector<Annotation*> annotationsInRange);
 
 private:
     std::function<void()> callBack;

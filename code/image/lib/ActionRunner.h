@@ -16,6 +16,7 @@ public:
     explicit ActionRunner(QObject *parent = nullptr);
 
     void setRailroadService(RailroadLogicService* rrls);
+    void setConfiguration(Configuration* conf);
 
     void addAction(Action* action);
     QVector<Action*> getActions(bool includeCurrent=true);
@@ -29,6 +30,7 @@ public:
 
 private:
     RailroadLogicService* railroadService;
+    Configuration* configuration;
     QVector<Action*> actions;
 
     Action* currentAction;
