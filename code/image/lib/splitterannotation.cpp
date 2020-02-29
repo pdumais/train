@@ -88,7 +88,7 @@ bool SplitterAnnotation::getClockWise()
 QString SplitterAnnotation::toString()
 {
     QString str;
-    QTextStream(&str) << this->inputTrack << "/" << this->track1 << "/" << this->track2;
+    QTextStream(&str) << this->inputTrack << "/" << this->track1 << "/" << this->track2 << ":" << this->position.y();
     return str;
 }
 

@@ -26,10 +26,12 @@ void MoveToSplitterAction::start(QVector<Annotation*> annotationsInRange)
         // of it if the track was not activated like it should have.
             
         // if we're comming from t1 or t2, we're going to t0 so there is no need to activate the track
-        if (!commingFromT0) break;
-
         // If the target track is already the one that needed activatation then just proceed
-        if (sa->getActiveTrack() == this->targetTrack) break;
+        if (!commingFromT0 || (sa->getActiveTrack() == this->targetTrack))
+        {
+            this->done();
+            return;
+        }
 
         this->reverse = !this->reverse;
         backingOutOfSplitter = sa;

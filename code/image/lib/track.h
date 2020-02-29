@@ -32,6 +32,7 @@ public:
     int findClosestIndex(QPoint p);
     QPoint findClosestPoint(QPoint p);
     QPolygon extractSegment(QPoint first, QPoint last, bool reverse);
+
 };
 
 Q_DECLARE_METATYPE(Track*);

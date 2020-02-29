@@ -48,9 +48,10 @@ int Railroad::getClosestTurnout(SplitterAnnotation* current, QString track, bool
     double distance = 0;
 
     int initialIndex = index;
+    QPoint lastPoint = poly[initialIndex];
     while(true)
     {
-        if (index == 0 && reverse)
+        if (index == -1 && reverse)
         {
             if (currentTrack->loops())
             {
@@ -72,20 +73,19 @@ int Railroad::getClosestTurnout(SplitterAnnotation* current, QString track, bool
                 break;
             }
         }
-
-        QPoint lastPoint = poly[index];
-        if (reverse) index--; else index++;
-
         QPoint newPoint = poly[index];
         distance += HYPOTHENUS((newPoint-lastPoint));
+
+        if (reverse) index--; else index++;
         if (reverse) section.prepend(newPoint); else section.append(newPoint);
+
 
         for (auto s : this->turnouts)
         {
             if (s == current) continue;
 
             QPoint realPos =s->getPosition();
-            if (HYPOTHENUS((realPos-poly[index])) <= (DETECT_RECT*2))
+            if (HYPOTHENUS((realPos-newPoint)) <= (60))  // TODO: dont hardcode 60 like this. But it's why we use in turnout detection
             {
                 //this splitter is on our track
                 splitter = s;
@@ -106,7 +106,7 @@ void Railroad::buildGraph()
 
     for (auto sa : this->turnouts)
     {
-        QString nodeName = sa->getName();
+        QString nodeName = sa->toString();
         this->tracksGraph->addNode(nodeName.toStdString(), sa);
     }
 
@@ -128,7 +128,7 @@ void Railroad::buildGraph()
 
         if (cost != -1)
         {
-            nodeName = nextSa->getName();
+            nodeName = nextSa->toString();
         }
         else
         {
@@ -139,11 +139,11 @@ void Railroad::buildGraph()
         if (sa->getClockWise())
         {
             // if the node is clockwise and the next one is reachable thru t0, it means we go forward
-            this->tracksGraph->addEdge(sa->getName().toStdString(), nodeName.toStdString(), section, cost);
+            this->tracksGraph->addEdge(sa->toString().toStdString(), nodeName.toStdString(), section, cost);
         }
         else
         {
-            this->tracksGraph->addEdge(nodeName.toStdString(), sa->getName().toStdString(), section, cost);
+            this->tracksGraph->addEdge(nodeName.toStdString(), sa->toString().toStdString(), section, cost);
         }
 
         cost = this->getClosestTurnout(sa, track1, sa->getClockWise(), nextSa, poly);
@@ -151,7 +151,7 @@ void Railroad::buildGraph()
         section.trackName = track1;
         if (cost != -1)
         {
-            nodeName = nextSa->getName();
+            nodeName = nextSa->toString();
         }
         else
         {
@@ -162,7 +162,7 @@ void Railroad::buildGraph()
         if (sa->getClockWise())
         {
             // if the node is clockwise and the next one is reachable thru t1/t2, it means we go backwards
-            this->tracksGraph->addEdge(nodeName.toStdString(), sa->getName().toStdString(), section, cost);
+            this->tracksGraph->addEdge(nodeName.toStdString(), sa->toString().toStdString(), section, cost);
         }
         else
         {
@@ -174,7 +174,7 @@ void Railroad::buildGraph()
         section.trackName = track2;
         if (cost != -1)
         {
-            nodeName = nextSa->getName();
+            nodeName = nextSa->toString();
         }
         else
         {
@@ -185,11 +185,11 @@ void Railroad::buildGraph()
         if (sa->getClockWise())
         {
             // if the node is clockwise and the next one is reachable thru t1/t2, it means we go backwards
-            this->tracksGraph->addEdge(nodeName.toStdString(), sa->getName().toStdString(), section, cost);
+            this->tracksGraph->addEdge(nodeName.toStdString(), sa->toString().toStdString(), section, cost);
         }
         else
         {
-            this->tracksGraph->addEdge(sa->getName().toStdString(), nodeName.toStdString(), section, cost);
+            this->tracksGraph->addEdge(sa->toString().toStdString(), nodeName.toStdString(), section, cost);
         }
     }
 }

@@ -549,22 +549,3 @@ QTEST_APPLESS_MAIN(tests)
 #include "tst_tests.moc"
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    
