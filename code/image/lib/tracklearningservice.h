@@ -6,13 +6,14 @@
 #include <QPolygon>
 #include "traincontroller.h"
 #include "visionservice.h"
+#include "configuration.h"
 #include "cvobject.h"
 
 class TrackLearningService : public QObject
 {
     Q_OBJECT
 public:
-    explicit TrackLearningService(TrainController* controller, VisionService* vision, QObject *parent = nullptr);
+    explicit TrackLearningService(TrainController* controller, VisionService* vision, Configuration* conf, QObject *parent = nullptr);
     virtual ~TrackLearningService();
 
     void start(QString name, QGraphicsPathItem* guiTrack);
@@ -30,6 +31,7 @@ public slots:
 private:
     TrainController* controller;
     VisionService* vision;
+    Configuration *configuration;
     QString name;
     bool learning;
     QPolygon *path;

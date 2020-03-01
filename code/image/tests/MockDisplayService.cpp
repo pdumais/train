@@ -2,9 +2,21 @@
 
 MockDisplayService::MockDisplayService()
 {
-
+    this->loco = new QGraphicsPolygonItem();
+    for (int i =0 ; i <20; i++)
+    {
+        QString name;
+        QTextStream(&name) << "wagon" << i;
+        this->wagons[name] = new QGraphicsPolygonItem();
+    }
 }
 
+
+MockDisplayService::~MockDisplayService()
+{
+    delete loco;
+    for (auto w : this->wagons.values()) delete w;
+}
 
 void MockDisplayService::setViewType(IDisplayService::ViewType vt)
 {
@@ -29,11 +41,16 @@ QGraphicsPathItem *MockDisplayService::track(QString name)
 
 QGraphicsItem *MockDisplayService::item(QString name)
 {
+    if (name == "locomotive") return this->loco;
+    if (this->wagons.contains(name)) return this->wagons[name];
+
     return 0;
 }
 
 QGraphicsPolygonItem *MockDisplayService::polygonItem(QString name)
 {
+    if (name == "locomotive") return this->loco;
+    if (this->wagons.contains(name)) return this->wagons[name];
     return 0;
 }
 

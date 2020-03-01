@@ -38,6 +38,7 @@ void DisplayService::init(QGraphicsView* view)
     camera->setViewfinder(this->videoItem);
 
     //camera->viewfinderSettings().setResolution(1920,1080);
+    // TODO: that FPS setting doesn't seem to work
     camera->viewfinderSettings().setMaximumFrameRate(15);
     this->camera->start();
 

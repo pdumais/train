@@ -4,8 +4,9 @@
 #include <QPoint>
 
 
-TrackLearningService::TrackLearningService(TrainController *ctrl, VisionService* vision, QObject *parent) : QObject(parent)
+TrackLearningService::TrackLearningService(TrainController *ctrl, VisionService* vision, Configuration *conf, QObject *parent) : QObject(parent)
 {
+    this->configuration = conf;
     this->vision = vision;
     this->controller = ctrl;
     this->learning = false;
@@ -62,10 +63,21 @@ void TrackLearningService::on_locomotive_changed(CVObject obj)
             this->stop();
             return;
         }
+    
+        QPoint newPoint(x,y);
+        // Check if we've reached another track
+        for (auto t : this->configuration->getTracks())
+        {
+            if ((t->findClosestPoint(newPoint)-newPoint).manhattanLength() < DETECT_RECT)
+            {
+                this->stop();
+                this->path->append(newPoint);
+                return;
+            }
+        }
 
-
-        this->path->append(QPoint(x,y));
-        qDebug() << "Learning new position: " << QPoint(x,y);
+        this->path->append(newPoint);
+        qDebug() << "Learning new position: " << newPoint;
     }
 
     QPainterPath p;

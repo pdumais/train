@@ -19,6 +19,9 @@ public:
     void setTrackMask(QVector<QPolygon> tracks) override;
     void setRestrictLocomotiveDetectionToTracks(bool v) override;
     void enableAnnotationDetection(bool v) override;
+
+    CVObject loco;
+    QVector<CVObject> wagonsList;
 };
 
 #endif // MOCKVISIONSERVICE_H

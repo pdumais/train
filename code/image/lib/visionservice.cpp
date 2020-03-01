@@ -10,6 +10,7 @@
 #include "opencv/cv.h"
 #include "displayservice.h"
 #include "constants.h"
+#include "PerformanceMonitor.h"
 
 //#define DEBUG_MARKERS
 //#define DEBUG_LOCO
@@ -34,12 +35,12 @@ VisionService::VisionService(int w, int h)
     connect(this->videoProbe, SIGNAL(videoFrameProbed(QVideoFrame)), this, SLOT(processFrame(QVideoFrame)));
     this->skipFrames = SKIP_FRAMES;
 
-    this->locomotiveSpecs.minColor = HSV(340,10,40);    // pink
+    this->locomotiveSpecs.minColor = HSV(340,20,60);    // pink
     this->locomotiveSpecs.maxColor = HSV(360,100,100);  // pink
     this->locomotiveSpecs.type = "locomotive";
     this->locomotiveSpecs.areaSize = DETECTION_SQUARE_SIZE;
 
-    this->locomotiveSpecsOffTracks.minColor = HSV(340,10,40);    // pink
+    this->locomotiveSpecsOffTracks.minColor = HSV(340,20,60);    // pink
     this->locomotiveSpecsOffTracks.maxColor = HSV(360,100,100);  // pink
     this->locomotiveSpecsOffTracks.type = "locomotive";
     this->locomotiveSpecsOffTracks.areaSize = DETECTION_SQUARE_SIZE;
@@ -429,6 +430,8 @@ void VisionService::processFrame(QVideoFrame frame)
     cv::Mat tmp;
     cv::Mat masked;
 
+    PerformanceMonitor::tic("VisionService::processFrame");
+
     // The frame comming from the camera are RGB32. Other cams could return something else so we'd need to adjust this.
     frame.map(QAbstractVideoBuffer::ReadOnly);
 
@@ -471,6 +474,8 @@ void VisionService::processFrame(QVideoFrame frame)
         emit locomotivePositionChanged(this->locomotive());
     }
 #endif
+
+    PerformanceMonitor::toc("VisionService::processFrame");
 }
 
 void VisionService::setTrackMask(QVector<QPolygon> tracks)
@@ -482,9 +487,17 @@ void VisionService::setTrackMask(QVector<QPolygon> tracks)
     p.fillRect(this->qtrackMask->rect(),Qt::black);
     pen.setWidth(TRACK_WIDTH);
     p.setPen(pen);
+        
+    /// manually draw each segment. Becuase drawPolygon would close the shape
     for (QPolygon& poly : tracks)
     {
-        p.drawPolygon(poly);
+        QPoint first = poly.takeFirst();
+        QPainterPath path(first);
+        for (auto point : poly)
+        {
+            path.lineTo(point);
+        }
+        p.drawPath(path);
     }
 
     cv::Mat tmp = cv::Mat(this->qtrackMask->height(), this->qtrackMask->width(), CV_8UC1, this->qtrackMask->bits());

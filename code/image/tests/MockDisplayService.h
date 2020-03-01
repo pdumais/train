@@ -9,6 +9,7 @@ class MockDisplayService : public IDisplayService
 {
 public:
     MockDisplayService();
+    ~MockDisplayService();
 
     // IDisplayService interface
 public:
@@ -27,6 +28,10 @@ public:
     QGraphicsPathItem *createTrackItem(QString name, ViewType viewType) override;
     QGraphicsPixmapItem *createPixmapItem(QString name, ViewType viewType, QString fileName, bool selectable) override;
     QGraphicsEllipseItem *createAnnotationItem(QString name, ViewType viewType, QString fileName, int radius, bool selectable) override;
+
+
+    QMap<QString,QGraphicsPolygonItem*> wagons;
+    QGraphicsPolygonItem* loco;
 };
 
 #endif // MOCKDISPLAYSERVICE_H

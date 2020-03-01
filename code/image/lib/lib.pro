@@ -35,7 +35,9 @@ SOURCES += \
     actions/Action.cpp \
     actions/MoveToAction.cpp \
     actions/ActivateTurnoutAction.cpp \
-    Train.cpp
+    Train.cpp \
+    CollisionMatrix.cpp \
+    PerformanceMonitor.cpp
     visionservice.cpp \
 
 
@@ -65,7 +67,9 @@ HEADERS += \
     actions/Action.h \
     actions/MoveToAction.h \
     actions/ActivateTurnoutAction.h \
-    Train.h
+    Train.h \
+    CollisionMatrix.h \
+    PerformanceMonitor.h
     visionservice.h \
 
 

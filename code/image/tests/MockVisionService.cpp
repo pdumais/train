@@ -13,12 +13,12 @@ QVideoProbe *MockVisionService::probe()
 
 CVObject MockVisionService::locomotive()
 {
-    return CVObject();
+    return this->loco;
 }
 
 QVector<CVObject> MockVisionService::wagons()
 {
-    return QVector<CVObject>();
+    return this->wagonsList; 
 }
 
 std::vector<DetectedMarker> MockVisionService::markers()

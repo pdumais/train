@@ -9,6 +9,7 @@
 #include "RailroadLogicService.h"
 #include "configuration.h"
 #include "ActionRunner.h"
+#include "constants.h"
 
 #define CONFIG_FILE "/home/pat/projects/train/code/image/tests/testdata/config.json"
 #define TRACK_DATA "/home/pat/projects/train/code/image/tests/testdata/tracks.dat"
@@ -33,6 +34,7 @@ private slots:
     void goFromLoopEndToMainAfterOutter();
     void goFromOutterToLoop();
     void goFromOutterToFarEnd();
+    void validateTrainObject();
 
 private:
     Configuration config;
@@ -47,7 +49,8 @@ private:
     MockDisplayService* display;
 
     void validateSplitterSwitching(SplitterAnnotation *sa, int activatedTrack, bool after);
-    void setTrainPosition(QPoint p);
+    void setTrainPosition(QPoint p, int w=4);
+    CVObject buildCVObject(QPoint p, int width);
 };
 
 tests::tests()
@@ -92,12 +95,23 @@ void tests::cleanup()
     delete controller;
 }
 
-void tests::setTrainPosition(QPoint p)
+CVObject tests::buildCVObject(QPoint p, int width)
 {
     CVObject cv;
     cv.setCenter(p);
-    QRect r(p.x()-2,p.y()-2,4,4);
+    int w = width;
+    int h = LOCO_HEIGHT;
+    QRect r(p.x()-(w/2),p.y()-(h/2),w,h);
     cv.setPolygon(QPolygon(r));
+    cv.setLine(QLine(QPoint(p.x()-(w/2),p.y()),QPoint(p.x()+(w/2),p.y())));
+    return cv;
+}
+
+void tests::setTrainPosition(QPoint p, int width)
+{
+
+    CVObject cv = buildCVObject(p,width);
+    this->vision->loco = cv;
 
     railroadLogicService->on_locomotive_changed(cv);
 }
@@ -427,7 +441,56 @@ void tests::goFromOutterToFarEnd()
 
 }
 
+void tests::validateTrainObject()
+{
+    int w = 10;
+
+    this->vision->wagonsList.append(buildCVObject(QPoint(1000-w-MAXIMUM_WAGON_CONNECTION_SIZE+1, 500), w));
+    this->vision->wagonsList.append(buildCVObject(QPoint(1000-(2*w)-MAXIMUM_WAGON_CONNECTION_SIZE+1, 500), w));
+    this->vision->wagonsList.append(buildCVObject(QPoint(1000-w-MAXIMUM_WAGON_CONNECTION_SIZE+1, 700), w));
+    this->vision->wagonsList.append(buildCVObject(outterSplitter->getPosition(), w));
+
+    setTrainPosition(QPoint(1000,500), w);
+
+    QColor wcol0 = this->display->polygonItem("wagon0")->brush().color();
+    QColor wcol1 = this->display->polygonItem("wagon1")->brush().color();
+    QColor wcol2 = this->display->polygonItem("wagon2")->brush().color();
+    QColor wcol3 = this->display->polygonItem("wagon3")->brush().color();
+    
+    // 2 first wagons should be the same color since they are being detected as part of the train
+    QVERIFY(wcol0 == wcol1);
+
+    // 3rd wagon should be a different color since it is not part of the train
+    QVERIFY(wcol2 != wcol1);
+    QVERIFY(wcol3 != wcol1);
+   
+    // an unlinked wagon should not trigger an annotation to be in range 
+    QVERIFY(outterSplitter->getInRange() == false);
+
+}
+
 
 QTEST_APPLESS_MAIN(tests)
 
 #include "tst_tests.moc"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    

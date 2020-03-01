@@ -12,6 +12,7 @@
 #include <actions/MoveToAction.h>
 #include "displayservice.h"
 #include "Train.h"
+#include "PerformanceMonitor.h"
 
 RailroadLogicService::RailroadLogicService(ITrainController *ctrl, IVisionService* vision, IDisplayService* display, Configuration* configuration, AudioService* audioService)
 {
@@ -55,45 +56,60 @@ void RailroadLogicService::on_waypoint_set(QPoint p)
 
 void RailroadLogicService::on_locomotive_changed(CVObject obj)
 {
-    QVariant v;
-    QPolygon shape = obj.getPolygon();
-    QGraphicsPolygonItem* loco = this->display->polygonItem("locomotive");
+    PerformanceMonitor::tic("RailroadLogicService::on_locomotive_changed");
+
 
     if (this->train) delete this->train;
-    train = new Train(shape, obj.getCenter());
-
-    if (loco)
+    train = new Train(obj);
+    for (auto w : this->vision->wagons())
     {
-        v.setValue(obj);
-        loco->setData(1,v);
-        loco->setPolygon(shape);
-    }
-
-    // TODO: this needs improvements since all wagons, including parked wagons are added in the train
-    QVector<CVObject> wagons = this->vision->wagons();
-    for (int i = 0; i < 20; i++)
-    {
-        QString name;
-        QTextStream(&name) << "wagon" << i;
-        QGraphicsPolygonItem* w = this->display->polygonItem(name);
-        if (!w) continue;
-        if (i < wagons.size())
-        {
-            v.setValue(wagons[i]);
-            QPolygon p = wagons[i].getPolygon();
-            w->setPolygon(p);
-            w->setData(1,v);
-            train->addWagon(p, obj.getCenter());
-        }
-        else
-        {
-            w->setPos(0,0);
-        }
+        train->addWagon(w);
     }
 
     this->checkAnnotations();
     this->actionRunner->onTrainMoved(this->train);
 
+    ////////////////////////////////////
+    // Update display
+    ////////////////////////////////////
+    QGraphicsPolygonItem* loco = this->display->polygonItem("locomotive");
+    if (loco)
+    {
+        //QVariant v;
+        //v.setValue(obj);
+        //loco->setData(1,v);
+        loco->setPolygon(train->getLocomotive());
+    }
+
+    int i = 0;
+    for (QPolygon poly : train->getLinkedWagons())
+    {
+        QString name;
+        QTextStream(&name) << "wagon" << i;
+        QGraphicsPolygonItem* w = this->display->polygonItem(name);
+        if (!w) continue;
+        //v.setValue(wagons[i]);
+        //w->setData(1,v);
+        w->setPolygon(poly);
+        w->setBrush(QBrush(QColor(255,0,255,64)));
+
+        i++;
+    }
+    for (QPolygon poly : train->getUnlinkedWagons())
+    {
+        QString name;
+        QTextStream(&name) << "wagon" << i;
+        QGraphicsPolygonItem* w = this->display->polygonItem(name);
+        if (!w) continue;
+        //v.setValue(wagons[i]);
+        //w->setData(1,v);
+        w->setPolygon(poly);
+        w->setBrush(QBrush(QColor(255,255,0,64)));
+
+        i++;
+    }
+
+    PerformanceMonitor::toc("RailroadLogicService::on_locomotive_changed");
 }
 
 void RailroadLogicService::checkAnnotations()
