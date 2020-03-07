@@ -29,7 +29,6 @@ public:
     QGraphicsPixmapItem *createPixmapItem(QString name, ViewType viewType, QString fileName, bool selectable) override;
     QGraphicsEllipseItem *createAnnotationItem(QString name, ViewType viewType, QString fileName, int radius, bool selectable) override;
 
-
     QMap<QString,QGraphicsPolygonItem*> wagons;
     QGraphicsPolygonItem* loco;
 };

@@ -37,3 +37,17 @@ void MockVisionService::setRestrictLocomotiveDetectionToTracks(bool v)
 void MockVisionService::enableAnnotationDetection(bool v)
 {
 }
+
+QPixmap MockVisionService::getDebugImage(QString name)
+{
+    return QPixmap();
+}
+
+void MockVisionService::enableDebug(bool val)
+{
+}
+
+QVector<QString> MockVisionService::getDebugNames()
+{
+    return QVector<QString>();
+}

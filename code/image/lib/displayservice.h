@@ -34,10 +34,8 @@ public:
     QGraphicsPolygonItem* createLocomotiveItem(QString name, ViewType viewType) override;
     QGraphicsPolygonItem* createWagonItem(QString name, ViewType viewType) override;
     QGraphicsPathItem* createTrackItem(QString name, ViewType viewType) override;
-    QGraphicsPixmapItem* createPixmapItem(QString name, ViewType viewType, QString fileName, bool selectable=false) override;
+    QGraphicsPixmapItem* createPixmapItem(QString name, ViewType viewType, QString fileName="", bool selectable=false) override;
     QGraphicsEllipseItem* createAnnotationItem(QString name, ViewType viewType, QString fileName, int radius, bool selectable=false) override;
-
-    static QGraphicsPixmapItem* debugPixmap;
 public slots:
     void on_operation_item_selected();
 
@@ -61,6 +59,7 @@ private:
     QCamera *camera;
     QGraphicsScene* operationScene;
     QGraphicsScene* learningScene;
+    QGraphicsScene* debugScene;
     QGraphicsView* view;
     QPoint wayPoint;
     QPoint wayPointEnd;

@@ -137,7 +137,7 @@ QVector<QPolygon> Train::getLinkedWagons() const
             index += indexIncrease;
 
             ret.append(tp->object);
-            if (tp->link1 = last)
+            if (tp->link1 == last)
             {
                 last = tp;
                 tp = tp->link2;

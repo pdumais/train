@@ -9,13 +9,11 @@
 #include "qdragdropgraphicsscene.h"
 #include "constants.h"
 
-QGraphicsPixmapItem* DisplayService::debugPixmap;
-
-
 DisplayService::DisplayService()
 {
     this->operationScene = new QDragDropGraphicsScene();
     this->learningScene = new QDragDropGraphicsScene();
+    this->debugScene = new QDragDropGraphicsScene();
 
     connect(this->operationScene, SIGNAL(selectionChanged()), this, SLOT(on_operation_item_selected()));
     connect(this->operationScene, SIGNAL(mouseClick(QPoint)), this, SIGNAL(waypointSet(QPoint)));
@@ -42,8 +40,7 @@ void DisplayService::init(QGraphicsView* view)
     camera->viewfinderSettings().setMaximumFrameRate(15);
     this->camera->start();
 
-    this->debugPixmap = new QGraphicsPixmapItem();
-    this->debugPixmap->setZValue(300);
+    this->createPixmapItem("debug", ViewType::Debug)->setZValue(1000);
     this->createTrackItem("LearningTrack", ViewType::Learning);
     this->createPixmapItem("_waypoint", ViewType::Operation, ":/waypoint.png");
     this->addGraphicsItem("_waypointline", new QGraphicsLineItem(), ViewType::Operation);
@@ -86,6 +83,7 @@ void DisplayService::removeItem(QString name)
     this->items.remove(name);
     this->operationScene->removeItem(item);
     this->learningScene->removeItem(item);
+    this->debugScene->removeItem(item);
 
     //TODO: do we need to delete items within a group?
     delete item;
@@ -154,6 +152,9 @@ void DisplayService::setViewType(ViewType vt)
     case ViewType::Learning:
         scene = this->learningScene;
         break;
+    case ViewType::Debug:
+        scene = this->debugScene;
+        break;
     case ViewType::All:
         scene = nullptr;
         video = nullptr;
@@ -176,7 +177,6 @@ void DisplayService::setViewType(ViewType vt)
             scene->addItem(it.item);
         }
     }
-    scene->addItem(this->debugPixmap);
 
     this->view->setScene(scene);
 }
@@ -220,9 +220,18 @@ QGraphicsPathItem* DisplayService::createTrackItem(QString name, ViewType viewTy
 
 QGraphicsPixmapItem* DisplayService::createPixmapItem(QString name, ViewType viewType, QString fileName, bool selectable)
 {
-    QImage img(fileName);
-    QGraphicsPixmapItem* item = new QGraphicsPixmapItem(QPixmap::fromImage(img).scaled(QSize(64,64)));
+    QGraphicsPixmapItem* item;
+    if (!fileName.isEmpty())
+    {
+        QImage img(fileName);
+        item = new QGraphicsPixmapItem(QPixmap::fromImage(img).scaled(QSize(64,64)));
+    }
+    else
+    {
+        item = new QGraphicsPixmapItem();
+    }
     this->addGraphicsItem(name,item,viewType, selectable);
+
     return item;
 }
 

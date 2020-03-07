@@ -6,6 +6,7 @@
 #include "opencv/cv.h"
 #include "opencv2/text.hpp"
 #include "IVisionService.h"
+#include "MatrixPool.h"
 
 typedef std::vector<std::vector<cv::Point>> Contours;
     
@@ -26,8 +27,13 @@ public:
     void setRestrictLocomotiveDetectionToTracks(bool v) override;
     void enableAnnotationDetection(bool v) override;
 
+    QPixmap getDebugImage(QString name) override;
+    void enableDebug(bool val) override;
+    QVector<QString> getDebugNames() override;
+
 signals:
     void locomotivePositionChanged(CVObject);
+    void frameProcessed();
     void locomotiveLost();
     void markerFound(DetectedMarker);
 
@@ -51,7 +57,6 @@ private:
         int      detectionMiss;
     };
 
-
     bool annotationDetectionEnabled;
     int width;
     int height;
@@ -70,14 +75,20 @@ private:
     DetectionSpecs crossingSpecs;
     cv::Ptr<cv::text::OCRTesseract> ocr;
 
-    std::vector<cv::RotatedRect> getObjects(cv::Mat img, DetectionSpecs specs, Contours&);
+    std::vector<cv::RotatedRect> getObjects(cv::Mat* img, DetectionSpecs specs, Contours&);
     void getContourWagonMask(DetectionSpecs specs, Contours& contours, cv::Mat& mask);
     void getRectWagonMask(std::vector<cv::RotatedRect>& wagons, cv::Mat& mask);
     void identifyWagons(std::vector<cv::RotatedRect>& wagons, cv::Mat& grayImage);
     cv::RotatedRect getEnlargedRect(cv::RotatedRect r, int newW, int newH);
     QLineF getLine(cv::RotatedRect r);
 
-    bool detectWagons(cv::Mat& mat);
-    bool detectLocomotive(cv::Mat& mat, DetectionSpecs& specs);
-    void detectMarkers(cv::Mat& mat);
+    bool detectWagons(cv::Mat* mat);
+    bool detectLocomotive(cv::Mat* mat, DetectionSpecs& specs);
+    void detectMarkers(cv::Mat* mat);
+    bool detectDottedLabels(int w, int h, cv::Mat* grayImage);
+
+    bool processDetectedWagons(std::vector<cv::RotatedRect>& wagons);
+    bool processDetectedLocomotive(std::vector<cv::RotatedRect>& loco);
+
+    MatrixPool matrixPool;
 };

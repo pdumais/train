@@ -45,6 +45,7 @@ MainWindow::MainWindow(TrainController *controller,
     // Setup status bar
     this->speedLabel = new QLabel();
     this->viewLabel = new QLabel();
+    this->ui->tabWidget->setCurrentIndex(0);
     this->ui->statusbar->addPermanentWidget(speedLabel);
     this->ui->statusbar->addWidget(viewLabel);
 
@@ -80,6 +81,7 @@ void MainWindow::setupFSM()
 
     QState* operateView = new QState();
     QStateMachine *learnView = new QStateMachine();
+    QState* debugView = new QState();
 
     learnView->addState(learningInactiveState);
     learnView->addState(learningActiveState);
@@ -87,6 +89,8 @@ void MainWindow::setupFSM()
 
     connect(operateView, &QState::entered, this, &MainWindow::operateView_entry);
     connect(operateView, &QState::exited, this, &MainWindow::operateView_exit);
+    connect(debugView, &QState::entered, this, &MainWindow::debugView_entry);
+    connect(debugView, &QState::exited, this, &MainWindow::debugView_exit);
     connect(learningActiveState, &QState::entered, this, &MainWindow::learningActive_entry);
     connect(learningActiveState, &QState::exited, this, &MainWindow::learningActive_exit);
     connect(learningInactiveState, &QState::entered, this, &MainWindow::learningInactive_entry);
@@ -95,6 +99,7 @@ void MainWindow::setupFSM()
 
     this->views.addState(operateView);
     this->views.addState(learnView);
+    this->views.addState(debugView);
     this->views.setInitialState(learnView);
 
     learningInactiveState->addTransition(this->ui->learntrack_button, SIGNAL(clicked(bool)), learningActiveState);
@@ -102,7 +107,11 @@ void MainWindow::setupFSM()
     learningActiveState->addTransition(this->trackLearningService, SIGNAL(learningStopped(QString)), learningInactiveState);
 
     operateView->addTransition(this, SIGNAL(viewLearn()), learnView);
+    operateView->addTransition(this, SIGNAL(viewDebug()), debugView);
     learnView->addTransition(this, SIGNAL(viewOperate()), operateView);
+    learnView->addTransition(this, SIGNAL(viewDebug()), debugView);
+    debugView->addTransition(this, SIGNAL(viewOperate()), operateView);
+    debugView->addTransition(this, SIGNAL(viewLearn()), learnView);
 
     this->views.start();
 }
@@ -156,6 +165,28 @@ void MainWindow::operateView_entry()
 
 void MainWindow::operateView_exit()
 {
+    this->railroadService->stopTrain();
+}
+
+void MainWindow::debugView_entry()
+{
+    this->display->setViewType(DisplayService::ViewType::Debug);
+    this->vision->enableDebug(true);
+
+    this->ui->debugImages->clear();
+
+    for (QString name : this->vision->getDebugNames())
+    {
+        if (name.isEmpty()) continue;
+        this->ui->debugImages->addItem(name);
+    }
+
+    viewLabel->setText("Debug view");
+}
+
+void MainWindow::debugView_exit()
+{
+    this->vision->enableDebug(false);
     this->railroadService->stopTrain();
 }
 
@@ -240,6 +271,9 @@ void MainWindow::on_tabWidget_currentChanged(int index)
     case 1:
         emit this->viewLearn();
         break;
+    case 2:
+        emit this->viewDebug();
+        break;
     }
 }
 
@@ -304,4 +338,9 @@ void MainWindow::on_lightSlider_valueChanged(int value)
 void MainWindow::on_goWaypoint_button_clicked()
 {
     this->railroadService->gotoWaypoint();
+}
+
+void MainWindow::on_debugImages_currentIndexChanged(const QString &arg1)
+{
+    this->railroadService->setDebugImageName(arg1);
 }

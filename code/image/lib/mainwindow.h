@@ -40,7 +40,7 @@ public:
 signals:
     void viewOperate();
     void viewLearn();
-    void viewAnnotate();
+    void viewDebug();
 
 private slots:
     void on_pushButton_2_clicked();
@@ -71,9 +71,10 @@ private slots:
 
     void on_goWaypoint_button_clicked();
 
+    void on_debugImages_currentIndexChanged(const QString &arg1);
+
 private:
     Ui::MainWindow *ui;
-//    TrackLearningService* learner;
     bool learning;
     QStateMachine views;
     QLabel *speedLabel;
@@ -91,6 +92,8 @@ private:
     void updateTrackList();
     void operateView_entry();
     void operateView_exit();
+    void debugView_entry();
+    void debugView_exit();
     void learnView_entry();
     void learningInactive_entry();
     void learningActive_entry();

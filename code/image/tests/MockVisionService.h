@@ -2,7 +2,7 @@
 #define MOCKVISIONSERVICE_H
 
 #include <IVisionService.h>
-
+#include <QPixmap>
 
 
 class MockVisionService : public IVisionService
@@ -19,7 +19,9 @@ public:
     void setTrackMask(QVector<QPolygon> tracks) override;
     void setRestrictLocomotiveDetectionToTracks(bool v) override;
     void enableAnnotationDetection(bool v) override;
-
+    QPixmap getDebugImage(QString name) override;
+    void enableDebug(bool val) override;
+    QVector<QString> getDebugNames() override;
     CVObject loco;
     QVector<CVObject> wagonsList;
 };

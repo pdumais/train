@@ -12,9 +12,11 @@
 #include "constants.h"
 #include "PerformanceMonitor.h"
 
-//#define DEBUG_MARKERS
-//#define DEBUG_LOCO
-//#define DEBUG_WAGONS
+#define MATRIX_LOCO_MASK 0
+#define MATRIX_WAGON_MASK 1
+#define MATRIX_CROSSINGS_MASK 2
+#define MATRIX_ALL_GRAY 3
+
 
 #define SKIP_FRAMES 1
 #define DETECTION_MISS_THRESHOLD 4
@@ -35,7 +37,7 @@ VisionService::VisionService(int w, int h)
     connect(this->videoProbe, SIGNAL(videoFrameProbed(QVideoFrame)), this, SLOT(processFrame(QVideoFrame)));
     this->skipFrames = SKIP_FRAMES;
 
-    this->locomotiveSpecs.minColor = HSV(340,20,60);    // pink
+    this->locomotiveSpecs.minColor = HSV(340,0,0);    // pink
     this->locomotiveSpecs.maxColor = HSV(360,100,100);  // pink
     this->locomotiveSpecs.type = "locomotive";
     this->locomotiveSpecs.areaSize = DETECTION_SQUARE_SIZE;
@@ -45,27 +47,19 @@ VisionService::VisionService(int w, int h)
     this->locomotiveSpecsOffTracks.type = "locomotive";
     this->locomotiveSpecsOffTracks.areaSize = DETECTION_SQUARE_SIZE;
 
-//    this->wagonSpecs.minColor = HSV(140,20,40);
-//    this->wagonSpecs.maxColor = HSV(160,100,100);
-    this->wagonSpecs.minColor = HSV(70,20,30);
-    this->wagonSpecs.maxColor = HSV(145,100,100);
+    this->wagonSpecs.minColor = HSV(60,40,40);
+    this->wagonSpecs.maxColor = HSV(160,100,100);
     this->wagonSpecs.type = "wagon";
-    this->wagonSpecs.areaSize = DETECTION_SQUARE_SIZE-200;
+    this->wagonSpecs.areaSize = DETECTION_SQUARE_SIZE;
 
     this->crossingSpecs.minColor = HSV(40,50,20);
     this->crossingSpecs.maxColor = HSV(50,90,60);
-//    this->crossingSpecs.minColor = HSV(40,10,20);
-  //  this->crossingSpecs.maxColor = HSV(100,40,100);
     this->crossingSpecs.type = "crossing";
     this->crossingSpecs.areaSize = ANNOTATION_DETECTION_SQUARE_SIZE;
-
 
     this->locomotive_position.detectionMiss = 0;
 
     this->restrictLocomotiveDetectionToTracks = true;
-
-    //setlocale(LC_ALL, "C");
-    //this->ocr = cv::text::OCRTesseract::create(0,0,whitelist.c_str(),3,10);
 
 }
 
@@ -183,19 +177,18 @@ QVector<CVObject> VisionService::wagons()
     return ret;
 }
 
-std::vector<cv::RotatedRect> VisionService::getObjects(cv::Mat img, DetectionSpecs specs, Contours& contours)
+std::vector<cv::RotatedRect> VisionService::getObjects(cv::Mat* img, DetectionSpecs specs, Contours& contours)
 {
     std::vector<cv::RotatedRect> ret;
-    cv::Mat mask;
-    cv::inRange(img, specs.minColor, specs.maxColor, mask);
+
+    cv::Mat* mat = this->matrixPool.getMatrix("object_detect");
+    cv::Mat tmp;
+    cv::inRange(*img, specs.minColor, specs.maxColor, *mat);
+    cv::erode(*mat,tmp,cv::Mat());
+    cv::dilate(tmp,*mat,cv::Mat());
 
     std::vector<cv::Vec4i> hierarchy;
-    cv::findContours(mask, contours, hierarchy, cv::RETR_CCOMP, cv::CHAIN_APPROX_NONE);
-
-    //cv::drawContours(mask,contours,-1,(255),-1);
-#if defined(DEBUG_MARKERS) || defined(DEBUG_LOCO) || defined(DEBUG_WAGONS)
-    DEBUGIMG8(mask)
-#endif
+    cv::findContours(*mat, contours, hierarchy, cv::RETR_CCOMP, cv::CHAIN_APPROX_NONE);
 
     if (contours.size() < 1) return ret;
 
@@ -205,13 +198,13 @@ std::vector<cv::RotatedRect> VisionService::getObjects(cv::Mat img, DetectionSpe
         double childArea = 0;
 
         int nextIndex = hierarchy[contourIndex][0];
-        int prevIndex = hierarchy[contourIndex][1];
         int childIndex = hierarchy[contourIndex][2];
-        int parentIndex = hierarchy[contourIndex][3];
         auto contour = contours[contourIndex];
         contourIndex = nextIndex;
 
         double area = cv::contourArea(contour);
+        if (area < specs.areaSize) continue;
+
         bool bigChild = false;
         while (childIndex != -1)
         {
@@ -223,15 +216,10 @@ std::vector<cv::RotatedRect> VisionService::getObjects(cv::Mat img, DetectionSpe
                 break;
             }
         }
-
-        // IF the contour has an inner contour that is bigger than 10% of the whole shape, then ignore it.
+        // If the contour has an inner contour that is bigger than 10% of the whole shape, then ignore it.
         if (bigChild) continue;
 
-        if (area < specs.areaSize) continue;
-        if (area < (specs.areaSize+200))
-        {
-            qDebug() << specs.type << " was detected but by a small margin";
-        }
+
         //TODO: we could also check for the aspectRatio to make sure it is something like a rectangle
         cv::RotatedRect r = cv::minAreaRect(contour);
         ret.push_back(r);
@@ -331,7 +319,7 @@ void VisionService::identifyWagons(std::vector<cv::RotatedRect>& wagons, cv::Mat
             }
         }
         if (letter) wagonLettersFound += letter;
-        DEBUGIMG8(rotatedLabel);
+        //DEBUGIMG8(rotatedLabel);
     }
 
     qDebug() << wagonLettersFound.c_str();
@@ -360,13 +348,20 @@ cv::RotatedRect VisionService::getEnlargedRect(cv::RotatedRect r, int newW, int 
 
 }
 
-bool VisionService::detectWagons(cv::Mat& mat)
+bool VisionService::detectWagons(cv::Mat* mat)
 {
     Contours contours;
-    bool atLeastOneDetected = false;
 
+    this->matrixPool.setContext("wagons");
     std::vector<cv::RotatedRect> wagons = this->getObjects(mat, this->wagonSpecs, contours);
     //this->identifyWagons(wagons, grayImage);
+
+    return this->processDetectedWagons(wagons);
+}
+
+bool VisionService::processDetectedWagons(std::vector<cv::RotatedRect>& wagons)
+{
+    bool atLeastOneDetected = false;
 
     this->wagons_positions.clear();
     for (auto &it : wagons)
@@ -380,12 +375,19 @@ bool VisionService::detectWagons(cv::Mat& mat)
     return atLeastOneDetected;
 }
 
-bool VisionService::detectLocomotive(cv::Mat& mat, DetectionSpecs& specs)
+bool VisionService::detectLocomotive(cv::Mat* mat, DetectionSpecs& specs)
 {
     Contours contours;
 
+    this->matrixPool.setContext("locomotive");
     std::vector<cv::RotatedRect> points = this->getObjects(mat, specs, contours);
-    if (points.size() != 1)
+
+    return this->processDetectedLocomotive(points);
+}
+
+bool VisionService::processDetectedLocomotive(std::vector<cv::RotatedRect>& loco)
+{
+    if (loco.size() != 1)
     {
         // We only emit once, so when detectionMiss matches, not when it is greater than
         this->locomotive_position.detectionMiss++;
@@ -394,26 +396,21 @@ bool VisionService::detectLocomotive(cv::Mat& mat, DetectionSpecs& specs)
             emit this->locomotiveLost();
         }
 
-        if (points.size() < 1)
-        {
-            qDebug() << "WARNING: No locomotive detected in frame";
-        }
-        else
-        {
-            qDebug() << "WARNING: More than 1 locomotive detected in frame";
-        }
         return false;
     }
 
     this->locomotive_position.detectionMiss = 0;
-    this->locomotive_position.rect = this->getEnlargedRect(points[0],LOCO_WIDTH,LOCO_HEIGHT);
+    this->locomotive_position.rect = this->getEnlargedRect(loco[0],LOCO_WIDTH,LOCO_HEIGHT);
 
     return true;
+
 }
 
-void VisionService::detectMarkers(cv::Mat& mat)
+
+void VisionService::detectMarkers(cv::Mat* mat)
 {
     Contours contours;
+    this->matrixPool.setContext("markers");
 
     std::vector<cv::RotatedRect> crossings = this->getObjects(mat, this->crossingSpecs, contours);
     for (auto c : crossings)
@@ -431,49 +428,59 @@ void VisionService::processFrame(QVideoFrame frame)
     cv::Point2f v2f[4];
     cv::Point v[4];
     cv::Mat tmp, tmp2, tmp3;
-    cv::Mat masked;
 
     PerformanceMonitor::tic("VisionService::processFrame");
+
+    this->matrixPool.reset();
+    this->matrixPool.setContext("process_frame");
 
     // The frame comming from the camera are RGB32. Other cams could return something else so we'd need to adjust this.
     frame.map(QAbstractVideoBuffer::ReadOnly);
 
-    cv::Mat mat(frame.height(), frame.width(), CV_8UC4, frame.bits());
-    cv::Mat grayImage(frame.height(), frame.width(), CV_8UC1);
-    cv::Mat hsvImage(frame.height(), frame.width(), CV_8UC4);
-    cv::cvtColor(mat, grayImage, cv::COLOR_BGR2GRAY);
-    cv::cvtColor(mat, hsvImage, cv::COLOR_BGR2HSV);
+
+    cv::Mat frameMat(frame.height(), frame.width(), CV_8UC4, frame.bits());
+    cv::Mat* grayImage = this->matrixPool.getMatrix("gray_all");
+    cv::Mat* hsvImage = this->matrixPool.getMatrix("hsv_all");
+    grayImage->create(frame.height(), frame.width(), CV_8UC1);
+    hsvImage->create(frame.height(), frame.width(), CV_8UC4);
+    cv::cvtColor(frameMat, *grayImage, cv::COLOR_BGR2GRAY);
+    cv::cvtColor(frameMat, *hsvImage, cv::COLOR_BGR2HSV);
 
 
     // Get the track-masked image
-    mat.copyTo(tmp, this->trackMask);
-    cv::cvtColor(tmp, masked, cv::COLOR_BGR2HSV);
+    cv::Mat* masked = this->matrixPool.getMatrix("track_masked");
+    frameMat.copyTo(tmp, this->trackMask);
+    cv::cvtColor(tmp, *masked, cv::COLOR_BGR2HSV);
     // At this point we have 2 images: "hsvImage" which is the whole image. and "masked" which is restricted on the map
 
-//cv::adaptiveThreshold(grayImage, tmp3, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY, 5,3);
-//DEBUGIMG8(tmp3)
 
-
-#if not defined(DEBUG_LOCO) && not defined(DEBUG_WAGONS)
-    if (this->annotationDetectionEnabled)
-    {
-        this->detectMarkers(masked);
-    }
-#endif
-
-    // Detect wagons on the masked image
-#if not defined(DEBUG_MARKERS) && not defined(DEBUG_LOCO)
-    this->detectWagons(masked);
-#endif
-
-#if not defined(DEBUG_MARKERS) && not defined(DEBUG_WAGONS)
-    /// Get locomotive
+    bool useDottedDetection = false;
     bool locoDetected = false;
-    if (this->restrictLocomotiveDetectionToTracks)
+
+    if (useDottedDetection)
     {
-        locoDetected = this->detectLocomotive(masked, this->locomotiveSpecs);
+        locoDetected = this->detectDottedLabels(frame.width(), frame.height(), grayImage);
+
     }
     else
+    {
+        if (this->annotationDetectionEnabled)
+        {
+            this->detectMarkers(masked);
+        }
+
+        // Detect wagons on the masked image
+        this->detectWagons(masked);
+
+        // Get locomotive
+        if (this->restrictLocomotiveDetectionToTracks)
+        {
+            locoDetected = this->detectLocomotive(masked, this->locomotiveSpecs);
+        }
+
+    }
+
+    if (!this->restrictLocomotiveDetectionToTracks)
     {
         locoDetected = this->detectLocomotive(hsvImage, this->locomotiveSpecsOffTracks);
     }
@@ -481,10 +488,116 @@ void VisionService::processFrame(QVideoFrame frame)
     {
         emit locomotivePositionChanged(this->locomotive());
     }
-#endif
+
+    emit frameProcessed();
 
     PerformanceMonitor::toc("VisionService::processFrame");
 }
+
+
+bool VisionService::detectDottedLabels(int w, int h, cv::Mat* grayImage)
+{
+    //////////////////////////////////
+    // THIS IS NOT USED
+    //////////////////////////////////
+    Contours list;
+    std::vector<cv::RotatedRect> locos;
+    std::vector<cv::RotatedRect> wagons;
+    Contours contours;
+    std::vector<cv::Vec4i> hierarchy;
+    cv::Mat* maskedCandidates = this->matrixPool.getMatrix("masked_candidates");
+    cv::Mat* contoursMat = this->matrixPool.getMatrix("contours");
+    contoursMat->create(h, w, CV_8UC1);
+    cv::Mat tmp, tmp2, tmp3;
+
+    cv::Mat* thresh = this->matrixPool.getMatrix("threshold");
+    cv::threshold(*grayImage, *thresh, 60, 255, cv::THRESH_BINARY);
+
+    //Get the adaptive threshold image
+    cv::Mat* adaptive = this->matrixPool.getMatrix("adaptive");
+    cv::adaptiveThreshold(*grayImage, *adaptive, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY, 5,3);
+    adaptive->copyTo(tmp, this->trackMask);
+
+
+    cv::Mat* adaptiveeroded = this->matrixPool.getMatrix("adaptive_eroded");
+    cv::erode(tmp, *adaptiveeroded, cv::Mat());
+
+    cv::findContours(*adaptiveeroded, contours, hierarchy, cv::RETR_CCOMP, cv::CHAIN_APPROX_SIMPLE);
+    cv::Mat mc(h,w,CV_8UC1);
+    mc.setTo(255);
+    for (int i =0; i < contours.size(); i++)
+    {
+        auto it = contours[i];
+        cv::RotatedRect rr = cv::minAreaRect(it);
+        cv::Rect r = cv::boundingRect(it);
+        double area = rr.size.area();
+        //float ratio = rr.size.width/rr.size.height;
+        if (area < 200 || area >700) continue;
+        if (r. width > 100 || r.height > 100) continue;
+        if (r. width < 10 || r.height < 10) continue;
+        //if (ratio > 4.0 || ratio < 0.25) continue;
+
+        // The shape must have between 1 and 3 dots in it. So The contour must have between 1-3 children
+        int childrenCount = 0;
+        int childIndex = hierarchy[i][2];
+        while (childIndex != -1)
+        {
+            auto it2 = contours[childIndex];
+            //cv::Rect rc = cv::boundingRect(it2);
+            cv::RotatedRect rr2 = cv::minAreaRect(it2);
+
+            childIndex =  hierarchy[childIndex][0];
+
+            if (rr2.size.area() < 10) continue;
+
+            childrenCount++;
+        }
+        if (childrenCount > 5) continue;
+        //if (childrenCount <1 || childrenCount > 3) continue;
+
+        //if (childrenCount == 1 ) locos.push_back(rr);
+        //else if (childrenCount == 2 ) wagons.push_back(rr);
+
+        //qDebug() << childrenCount;
+
+
+        cv::Mat source = (*grayImage)(r);
+        source = source.clone();
+        cv::Mat rotated(r.height,r.width,CV_8UC1);
+        cv::Point2f center(r.width/2,r.height/2);
+        float angle = rr.angle+90;
+        if (rr.size.width > rr.size.height) angle-=90;
+
+        cv::Mat rotation = cv::getRotationMatrix2D(center, angle, 1);
+        warpAffine(source, rotated, rotation, rotated.size(), cv::INTER_CUBIC,cv::BORDER_CONSTANT, cv::Scalar(255));
+
+        rotated.copyTo(mc.colRange(r.x,r.x+r.width).rowRange(r.y,r.y+r.height));
+//        rotated.copyTo(maskedCandidates->rowRange(r.x,r.x+rr.size.width).colRange(r.y,r.y+rr.size.height));
+        /*
+        cv::Point2f p2f[4];
+        cv::Point p[4];
+        rr.points(p2f);
+        for (int i=0; i<4; i++) p[i] = p[i] = p2f[i];
+        cv::fillConvexPoly(*contoursMat, p, 4, cv::Scalar(255));*/
+
+    }
+    mc.copyTo(*maskedCandidates);
+    //grayImage->copyTo(tmp2, *contoursMat);
+    //cv::threshold(tmp2, *maskedCandidates, 100, 255, cv::THRESH_BINARY);
+
+    qDebug() << "";
+    //adaptive->copyTo(*maskedCandidates, *contoursMat);
+
+    this->processDetectedWagons(wagons);
+    bool locoDetected = false;
+    if (!this->restrictLocomotiveDetectionToTracks)
+    {
+        locoDetected = this->processDetectedLocomotive(locos);
+    }
+
+    return locoDetected;
+}
+
 
 void VisionService::setTrackMask(QVector<QPolygon> tracks)
 {
@@ -511,4 +624,20 @@ void VisionService::setTrackMask(QVector<QPolygon> tracks)
 
     cv::Mat tmp = cv::Mat(this->qtrackMask->height(), this->qtrackMask->width(), CV_8UC1, this->qtrackMask->bits());
     cv::threshold(tmp, this->trackMask, 200 , 255,0);
+}
+
+
+QPixmap VisionService::getDebugImage(QString name)
+{
+     return QPixmap::fromImage(this->matrixPool.dumpMatrix(name));
+}
+
+void VisionService::enableDebug(bool val)
+{
+    this->matrixPool.setDebug(val);
+}
+
+QVector<QString> VisionService::getDebugNames()
+{
+    return this->matrixPool.getNames();
 }

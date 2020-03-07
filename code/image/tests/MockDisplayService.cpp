@@ -90,3 +90,4 @@ QGraphicsEllipseItem *MockDisplayService::createAnnotationItem(QString name, IDi
 {
     return 0;
 }
+

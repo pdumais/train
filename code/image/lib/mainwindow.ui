@@ -283,6 +283,21 @@
       </property>
      </widget>
     </widget>
+    <widget class="QWidget" name="tab_3">
+     <attribute name="title">
+      <string>Debug</string>
+     </attribute>
+     <widget class="QComboBox" name="debugImages">
+      <property name="geometry">
+       <rect>
+        <x>80</x>
+        <y>70</y>
+        <width>221</width>
+        <height>26</height>
+       </rect>
+      </property>
+     </widget>
+    </widget>
    </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">

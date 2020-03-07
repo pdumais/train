@@ -29,7 +29,9 @@ public:
     virtual void setTrackMask(QVector<QPolygon> tracks) =0;
     virtual void setRestrictLocomotiveDetectionToTracks(bool v) =0;
     virtual void enableAnnotationDetection(bool v) =0;
-
+    virtual QPixmap getDebugImage(QString name) = 0;
+    virtual void enableDebug(bool val) = 0;
+    virtual QVector<QString> getDebugNames() = 0;
 signals:
     void locomotivePositionChanged(CVObject);
     void locomotiveLost();

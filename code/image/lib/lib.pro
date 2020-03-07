@@ -41,6 +41,7 @@ SOURCES += \
     actions/ChangeTrackAction.cpp \
     actions/MoveToSplitterAction.cpp \
     actions/InitSplittersAction.cpp \
+    MatrixPool.cpp
 
 
 HEADERS += \
@@ -76,6 +77,7 @@ HEADERS += \
     actions/ChangeTrackAction.h \
     actions/MoveToSplitterAction.h \
     actions/InitSplittersAction.h \
+    MatrixPool.h
 
 
 FORMS += \

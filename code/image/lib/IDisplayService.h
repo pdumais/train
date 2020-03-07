@@ -21,6 +21,7 @@ public:
         All,
         Operation,
         Learning,
+        Debug,
     };
 
     enum class GraphicsObjectType
