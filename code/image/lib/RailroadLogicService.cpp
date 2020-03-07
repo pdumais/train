@@ -222,12 +222,15 @@ void RailroadLogicService::checkAnnotations()
 
 void RailroadLogicService::on_marker_found(DetectedMarker m)
 {
+    TrainPosition tp = this->findClosestPoint(m.pos);
+    QPoint pos = tp.point;
+
     if (m.code == MARKER_TYPE_CROSSING)
     {
         bool existsAlready = false;
         for (auto a : this->configuration->getCrossroadsAnnotations())
         {
-            if ((m.pos - a->getPosition()).manhattanLength() < 100)
+            if ((pos - a->getPosition()).manhattanLength() < 100)
             {
                 existsAlready = true;
                 break;
@@ -235,9 +238,9 @@ void RailroadLogicService::on_marker_found(DetectedMarker m)
         }
         if (!existsAlready)
         {
-            qDebug() << "Marker found at " << m.pos;
+            qDebug() << "Marker found at " << pos;
             CrossRoadAnnotation *ca = new CrossRoadAnnotation();
-            ca->setPosition(m.pos);
+            ca->setPosition(pos);
             ca->setName(QUuid::createUuid().toString());
             this->configuration->addAnnotation(ca);
             this->updateAnnotations();

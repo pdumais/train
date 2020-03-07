@@ -78,10 +78,11 @@ private:
     std::vector<cv::RotatedRect> getObjects(cv::Mat* img, DetectionSpecs specs, Contours&);
     cv::RotatedRect getEnlargedRect(cv::RotatedRect r, int newW, int newH);
     QLineF getLine(cv::RotatedRect r);
+    cv::Mat generateCrossingTemplate(int w, int h);
 
     bool detectWagons(cv::Mat* mat);
     bool detectLocomotive(cv::Mat* mat, DetectionSpecs& specs);
-    void detectMarkers(cv::Mat* mat);
+    void detectMarkers(cv::Mat* mat, cv::Mat* adaptive);
 
     bool processDetectedWagons(std::vector<cv::RotatedRect>& wagons);
     bool processDetectedLocomotive(std::vector<cv::RotatedRect>& loco);

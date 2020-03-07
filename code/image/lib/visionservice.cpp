@@ -200,6 +200,8 @@ std::vector<cv::RotatedRect> VisionService::getObjects(cv::Mat* img, DetectionSp
         int nextIndex = hierarchy[contourIndex][0];
         int childIndex = hierarchy[contourIndex][2];
         auto contour = contours[contourIndex];
+
+        // TODO: we're only searching in first level when doing that. Should iteratate sequentially instead
         contourIndex = nextIndex;
 
         double area = cv::contourArea(contour);
@@ -311,20 +313,93 @@ bool VisionService::processDetectedLocomotive(std::vector<cv::RotatedRect>& loco
 }
 
 
-void VisionService::detectMarkers(cv::Mat* mat)
+void VisionService::detectMarkers(cv::Mat* mat, cv::Mat* adaptive)
 {
     Contours contours;
     this->matrixPool.setContext("markers");
 
-    std::vector<cv::RotatedRect> crossings = this->getObjects(mat, this->crossingSpecs, contours);
+/*    std::vector<cv::RotatedRect> crossings = this->getObjects(mat, this->crossingSpecs, contours);
     for (auto c : crossings)
     {
         DetectedMarker dm;
         dm.pos = QPoint(c.center.x, c.center.y);
         dm.code = MARKER_TYPE_CROSSING;
         emit markerFound(dm);
-    }
+    }*/
 
+
+    cv::Mat tmp;
+    cv::Mat* cntmat = this->matrixPool.getMatrix("contours");
+    cv::Mat mc(adaptive->size(),CV_8UC1);
+    mc.setTo(0);
+    cntmat->create(adaptive->size(), CV_8UC1);
+    erode(*adaptive, tmp, cv::Mat());
+    erode(tmp, *adaptive, cv::Mat());
+    std::vector<cv::Vec4i> hierarchy;
+    cv::findContours(*adaptive, contours, hierarchy, cv::RETR_CCOMP, cv::CHAIN_APPROX_NONE);
+    for (int contourIndex = 0; contourIndex < contours.size(); contourIndex++)
+    {
+        auto contour = contours[contourIndex];
+
+        cv::RotatedRect rr = cv::minAreaRect(contour);
+        double area = cv::contourArea(contour);
+        if (rr.size.area() <2000 || rr.size.area() >3500) continue;
+        double ratio = rr.size.width/rr.size.height;
+        if (ratio > 1.2 || ratio < 0.8) continue;
+
+        cv::Rect r = cv::boundingRect(contour);
+        cv::Mat source = (*adaptive)(r);
+        source = source.clone();
+        cv::Mat rotated(r.height,r.width,CV_8UC1);
+        rotated.setTo(0);
+        cv::Point2f center(r.width/2,r.height/2);
+        float angle = rr.angle+90;
+        if (rr.size.width > rr.size.height) angle-=90;
+        cv::Mat rotation = cv::getRotationMatrix2D(center, angle, 1);
+        warpAffine(source, rotated, rotation, rotated.size(), cv::INTER_CUBIC,cv::BORDER_CONSTANT, cv::Scalar(255));
+
+        cv::bitwise_not(rotated,rotated);
+
+        double dw = (r.width- rr.size.width);
+        double dh = (r.height- rr.size.height);
+        if (dw <0) dw = 0;
+        if (dh < 0) dh = 0;
+        tmp = rotated(cv::Rect(dw,dh,rotated.size().width-dw*2,rotated.size().height-dh*2));
+        rotated = tmp;
+        cv::Mat target = this->generateCrossingTemplate(rotated.size().width, rotated.size().height);
+
+        // We mask the candidate with a template that we are looking for. Then we calculate the difference
+        // between the target and the masked target. The difference should be small
+        double n = cv::norm(rotated,target, cv::NORM_L2, target);
+        if (n > 3000) continue;
+        tmp.copyTo(mc.colRange(r.x,r.x+rotated.size().width).rowRange(r.y,r.y+rotated.size().height));
+
+        DetectedMarker dm;
+        dm.pos = QPoint(rr.center.x, rr.center.y);
+        dm.code = MARKER_TYPE_CROSSING;
+        emit markerFound(dm);
+    }
+    mc.copyTo(*cntmat);
+}
+
+cv::Mat VisionService::generateCrossingTemplate(int w, int h)
+{
+    cv::Mat target(h,w, CV_8UC1);
+    target.setTo(0);
+    cv::Point pt1, pt2;
+    pt1.x = 0;
+    pt1.y = 0;
+    pt2.x = target.size().width;
+    pt2.y = target.size().height;
+    cv::line(target, pt1, pt2, cv::Scalar(255), 3, cv::LINE_AA);
+    pt1.x = target.size().width;
+    pt1.y = 0;
+    pt2.x = 0;
+    pt2.y = target.size().height;
+    cv::line(target, pt1, pt2, cv::Scalar(255), 3, cv::LINE_AA);
+    cv::rectangle(target,cv::Rect(0,0,w, h), cv::Scalar(255), 3);
+
+    return target;
 }
 
 void VisionService::processFrame(QVideoFrame frame)
@@ -364,7 +439,7 @@ void VisionService::processFrame(QVideoFrame frame)
 
     if (this->annotationDetectionEnabled)
     {
-        this->detectMarkers(masked);
+        this->detectMarkers(masked, adaptive);
     }
 
     // Detect wagons on the masked image
