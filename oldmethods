@@ -1,0 +1,202 @@
+void VisionService::identifyWagons(std::vector<cv::RotatedRect>& wagons, cv::Mat& grayImage)
+{
+    cv::Mat maskedWagon(this->height, this->width, CV_8UC1);
+    cv::Mat mask = cv::Mat(this->height, this->width, CV_8UC1);
+    mask.setTo(cv::Scalar(0));
+    getRectWagonMask(wagons,mask);
+    //getContourWagonMask(this->wagonSpecs, contours,mask);
+
+    // Using a negative mask, set background white
+    cv::Mat negativeMask = cv::Mat(this->height, this->width, CV_8UC1);
+    negativeMask.setTo(cv::Scalar(255));
+    cv::Mat tmp = cv::Mat(this->height, this->width, CV_8UC1);
+    cv::bitwise_not(mask,negativeMask);
+    cv::bitwise_or(grayImage,negativeMask,tmp);
+    cv::threshold(tmp, maskedWagon, 70, 255, cv::THRESH_BINARY);
+
+
+    std::string wagonLettersFound;
+    for (auto& it : wagons)
+    {
+        cv::Rect r = it.boundingRect();
+        cv::Mat label = maskedWagon(r);
+        label = label.clone();
+        cv::Mat rotatedLabel(100,100,CV_8UC1);
+        cv::Point2f center(r.width/2,r.height/2);
+
+        // if the width is larger than the height, it means that the rectangle is lying on its side.
+        // So we'll add another 90 degrees to the angle
+        float angle = it.angle;
+        if (it.size.width > it.size.height) angle-=90;
+
+        cv::Mat rotation = cv::getRotationMatrix2D(center, angle, 1);
+        warpAffine(label, rotatedLabel, rotation, rotatedLabel.size(), cv::INTER_CUBIC,cv::BORDER_CONSTANT, cv::Scalar(255));
+
+        std::string str;
+        ocr->run(rotatedLabel,str);
+        char letter = 0;
+        for (char c : whitelist)
+        {
+            if (str.find(c) != std::string::npos)
+            {
+                letter = c;
+                break;
+            }
+        }
+        if (!letter)
+        {
+            cv::Mat rotation = cv::getRotationMatrix2D(center, angle+180, 1);
+            warpAffine(label, rotatedLabel, rotation, rotatedLabel.size(), cv::INTER_CUBIC,cv::BORDER_CONSTANT, cv::Scalar(255));
+            ocr->run(rotatedLabel,str);
+            for (char c : whitelist)
+            {
+                if (str.find(c) != std::string::npos)
+                {
+                    letter = c;
+                    break;
+                }
+            }
+        }
+        if (letter) wagonLettersFound += letter;
+        //DEBUGIMG8(rotatedLabel);
+    }
+
+    qDebug() << wagonLettersFound.c_str();
+}
+
+// This is for getting the wagons mask using contour. It is slower than using getRectWagonMask but it's more precise
+void VisionService::getContourWagonMask(DetectionSpecs specs, Contours& contours, cv::Mat& mask)
+{
+    Contours list;
+    // Create mask using contours. This is more precise but sometimes
+    // bleeds into the shape, flooding the letter
+    for (auto& it : contours)
+    {
+        double epsilon = 0.1*cv::arcLength(it,true);
+        std::vector<cv::Point> curve;
+        cv::approxPolyDP(it,curve,epsilon,true);
+        double area = cv::contourArea(curve);
+        if (area < specs.areaSize) continue;
+        list.push_back(it);
+    }
+    cv::drawContours(mask,list, -1, cv::Scalar(255),-1);
+}
+
+// This is for getting the wagons mask using rotated rect. It is faster than using getContourWagonMask but it's sloppier
+void VisionService::getRectWagonMask(std::vector<cv::RotatedRect>& wagons, cv::Mat& mask)
+{
+    // Create mask using rotated rectangles
+    for (cv::RotatedRect r : wagons)
+    {
+        cv::Point2f p2f[4];
+        cv::Point p[4];
+        r.points(p2f);
+        for (int i=0; i<4; i++) p[i] = p[i] = p2f[i];
+        cv::fillConvexPoly(mask,p,4,cv::Scalar(255));
+    }
+}
+
+bool VisionService::detectDottedLabels(int w, int h, cv::Mat* grayImage)
+{
+    //////////////////////////////////
+    // THIS IS NOT USED
+    //////////////////////////////////
+    Contours list;
+    std::vector<cv::RotatedRect> locos;
+    std::vector<cv::RotatedRect> wagons;
+    Contours contours;
+    std::vector<cv::Vec4i> hierarchy;
+    cv::Mat* maskedCandidates = this->matrixPool.getMatrix("masked_candidates");
+    cv::Mat* contoursMat = this->matrixPool.getMatrix("contours");
+    contoursMat->create(h, w, CV_8UC1);
+    cv::Mat tmp, tmp2, tmp3;
+
+    cv::Mat* thresh = this->matrixPool.getMatrix("threshold");
+    cv::threshold(*grayImage, *thresh, 60, 255, cv::THRESH_BINARY);
+
+    //Get the adaptive threshold image
+    cv::Mat* adaptive = this->matrixPool.getMatrix("adaptive");
+    cv::adaptiveThreshold(*grayImage, *adaptive, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY, 5,3);
+    adaptive->copyTo(tmp, this->trackMask);
+
+
+    cv::Mat* adaptiveeroded = this->matrixPool.getMatrix("adaptive_eroded");
+    cv::erode(tmp, *adaptiveeroded, cv::Mat());
+
+    cv::findContours(*adaptiveeroded, contours, hierarchy, cv::RETR_CCOMP, cv::CHAIN_APPROX_SIMPLE);
+    cv::Mat mc(h,w,CV_8UC1);
+    mc.setTo(255);
+    for (int i =0; i < contours.size(); i++)
+    {
+        auto it = contours[i];
+        cv::RotatedRect rr = cv::minAreaRect(it);
+        cv::Rect r = cv::boundingRect(it);
+        double area = rr.size.area();
+        //float ratio = rr.size.width/rr.size.height;
+        if (area < 200 || area >700) continue;
+        if (r. width > 100 || r.height > 100) continue;
+        if (r. width < 10 || r.height < 10) continue;
+        //if (ratio > 4.0 || ratio < 0.25) continue;
+
+        // The shape must have between 1 and 3 dots in it. So The contour must have between 1-3 children
+        int childrenCount = 0;
+        int childIndex = hierarchy[i][2];
+        while (childIndex != -1)
+        {
+            auto it2 = contours[childIndex];
+            //cv::Rect rc = cv::boundingRect(it2);
+            cv::RotatedRect rr2 = cv::minAreaRect(it2);
+
+            childIndex =  hierarchy[childIndex][0];
+
+            if (rr2.size.area() < 10) continue;
+
+            childrenCount++;
+        }
+        if (childrenCount > 5) continue;
+        //if (childrenCount <1 || childrenCount > 3) continue;
+
+        //if (childrenCount == 1 ) locos.push_back(rr);
+        //else if (childrenCount == 2 ) wagons.push_back(rr);
+
+        //qDebug() << childrenCount;
+
+
+        cv::Mat source = (*grayImage)(r);
+        source = source.clone();
+        cv::Mat rotated(r.height,r.width,CV_8UC1);
+        cv::Point2f center(r.width/2,r.height/2);
+        float angle = rr.angle+90;
+        if (rr.size.width > rr.size.height) angle-=90;
+
+        cv::Mat rotation = cv::getRotationMatrix2D(center, angle, 1);
+        warpAffine(source, rotated, rotation, rotated.size(), cv::INTER_CUBIC,cv::BORDER_CONSTANT, cv::Scalar(255));
+
+        rotated.copyTo(mc.colRange(r.x,r.x+r.width).rowRange(r.y,r.y+r.height));
+//        rotated.copyTo(maskedCandidates->rowRange(r.x,r.x+rr.size.width).colRange(r.y,r.y+rr.size.height));
+        /*
+        cv::Point2f p2f[4];
+        cv::Point p[4];
+        rr.points(p2f);
+        for (int i=0; i<4; i++) p[i] = p[i] = p2f[i];
+        cv::fillConvexPoly(*contoursMat, p, 4, cv::Scalar(255));*/
+
+    }
+    mc.copyTo(*maskedCandidates);
+    //grayImage->copyTo(tmp2, *contoursMat);
+    //cv::threshold(tmp2, *maskedCandidates, 100, 255, cv::THRESH_BINARY);
+
+    qDebug() << "";
+    //adaptive->copyTo(*maskedCandidates, *contoursMat);
+
+    this->processDetectedWagons(wagons);
+    bool locoDetected = false;
+    if (!this->restrictLocomotiveDetectionToTracks)
+    {
+        locoDetected = this->processDetectedLocomotive(locos);
+    }
+
+    return locoDetected;
+}
+
+

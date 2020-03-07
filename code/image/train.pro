@@ -7,3 +7,6 @@ CONFIG += ordered
 
 tests.depends = lib
 src.depends = lib
+
+DISTFILES += \
+    ../../oldmethods
