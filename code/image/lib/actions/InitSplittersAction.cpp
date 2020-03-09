@@ -11,6 +11,9 @@ void InitSplittersAction::start(QVector<Annotation*> annotationsInRange)
 {
     for (auto ti : this->tracks)
     {
+        // Don't change any splitters which are in range since it would derail the train
+        if (annotationsInRange.contains(ti.sa)) continue;
+
         if (ti.sa->getTrack2() == ti.track)
         {
             this->railroadLogicService->activateSplitter(ti.sa,true);

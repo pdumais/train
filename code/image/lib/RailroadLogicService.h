@@ -49,7 +49,7 @@ public slots:
     void on_locomotive_changed(CVObject);
     void on_marker_found(DetectedMarker);
     void on_waypoint_set(QPoint);
-
+    void on_fingers_detected(QVector<QPoint>);
 
 private:
 
@@ -63,6 +63,20 @@ private:
         bool reverseToReachSplitter; // if the track loops, we could travel in both direction to reach it
         QVector<SplitterSearchNode> children;
     };
+
+    /*struct FingerPosition
+    {
+        QPoint finger;
+        int debounce;
+        bool updated;
+    };
+
+    QVector<FingerPosition*> fingers;*/
+
+    int fingerCount;
+    QTime fingerCountDebounce;
+    QTime fingerCountlastUpdate;
+    bool fingerCountReacted;
 
     ActionRunner*  actionRunner;
     TrainPosition waypoint;

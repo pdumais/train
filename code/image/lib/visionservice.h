@@ -8,7 +8,8 @@
 #include "IVisionService.h"
 #include "MatrixPool.h"
 
-typedef std::vector<std::vector<cv::Point>> Contours;
+typedef std::vector<cv::Point> Contour;
+typedef std::vector<Contour> Contours;
     
 class VisionService: public IVisionService
 {
@@ -36,6 +37,7 @@ signals:
     void frameProcessed();
     void locomotiveLost();
     void markerFound(DetectedMarker);
+    void fingersDetected(QVector<QPoint>);
 
 public slots:
     void processFrame(QVideoFrame);
@@ -80,6 +82,7 @@ private:
     QLineF getLine(cv::RotatedRect r);
     cv::Mat generateCrossingTemplate(int w, int h);
 
+    bool detectHand(cv::Mat* mat);
     bool detectWagons(cv::Mat* mat);
     bool detectLocomotive(cv::Mat* mat, DetectionSpecs& specs);
     void detectMarkers(cv::Mat* mat, cv::Mat* adaptive);

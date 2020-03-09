@@ -31,12 +31,21 @@ RailroadLogicService::RailroadLogicService(ITrainController *ctrl, IVisionServic
 
     this->train = nullptr;
 
+    connect(this->vision, SIGNAL(fingersDetected(QVector<QPoint>)), this, SLOT(on_fingers_detected(QVector<QPoint>)));
     connect(this->vision, SIGNAL(frameProcessed()), this, SLOT(on_frame_processed()));
     connect(this->vision, SIGNAL(locomotivePositionChanged(CVObject)), this, SLOT(on_locomotive_changed(CVObject)));
     connect(this->vision, SIGNAL(markerFound(DetectedMarker)), this, SLOT(on_marker_found(DetectedMarker)));
     connect(this->display, SIGNAL(waypointSet(QPoint)), this, SLOT(on_waypoint_set(QPoint)));
 
     this->controller->setSpeed(0);
+/*    for (int i = 0; i < 5; i++)
+    {
+        FingerPosition* f = new FingerPosition;
+        f->debounce = 0;
+        this->fingers.append(f);
+    }*/
+    this->fingerCount = 0;
+    this->fingerCountDebounce = QTime();
 
     // Enable detection of annotations only for 1 minute
     this->vision->enableAnnotationDetection(true);
@@ -55,6 +64,9 @@ RailroadLogicService::~RailroadLogicService()
 
     delete this->actionRunner;
     this->actionRunner = nullptr;
+
+//    for (auto f : fingers) delete f;
+//    this->fingers.clear();
 }
 
 Railroad* RailroadLogicService::getRailroad()
@@ -79,6 +91,43 @@ void RailroadLogicService::on_frame_processed()
         QGraphicsPixmapItem* pm = (QGraphicsPixmapItem*)this->display->item("debug");
         pm->setPixmap(this->vision->getDebugImage(this->debugImageName));
     }
+}
+
+void RailroadLogicService::on_fingers_detected(QVector<QPoint> positions)
+{
+    if (this->fingerCountlastUpdate.elapsed() > 2000)
+    {
+        // It's been 2 seconds since we had a last update. So assume that fingercount became zero
+        this->fingerCount = 0;
+        this->fingerCountDebounce.restart();
+        this->fingerCountReacted = false;
+    }
+    this->fingerCountlastUpdate.restart();
+
+    if (this->fingerCount != positions.size())
+    {
+        this->fingerCount = positions.size();
+        this->fingerCountDebounce.restart();
+        this->fingerCountReacted = false;
+    }
+    else if (this->fingerCount > 0)
+    {
+        if (this->fingerCountDebounce.elapsed() > 1500 && !this->fingerCountReacted)
+        {
+            this->fingerCountReacted = true;
+
+            qDebug() << "Detected hand with " << this->fingerCount << " fingers";
+            if (this->fingerCount == 1)
+            {
+                this->setWaypoint(positions[0]);
+            }
+            else if (this->fingerCount == 5)
+            {
+                this->gotoWaypoint();
+            }
+        }
+    }
+
 }
 
 void RailroadLogicService::on_locomotive_changed(CVObject obj)

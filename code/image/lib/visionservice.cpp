@@ -11,6 +11,7 @@
 #include "displayservice.h"
 #include "constants.h"
 #include "PerformanceMonitor.h"
+#include <QMap>
 
 #define MATRIX_LOCO_MASK 0
 #define MATRIX_WAGON_MASK 1
@@ -402,6 +403,134 @@ cv::Mat VisionService::generateCrossingTemplate(int w, int h)
     return target;
 }
 
+
+bool VisionService::detectHand(cv::Mat* mat)
+{
+//TODO: Do this in another thread, on another core
+
+    Contours contours;
+    QVector<QPoint> fingers;
+    std::vector<cv::Vec4i> defects;
+    std::vector<int> hull;
+    std::vector<int> reducedHull;
+    std::vector<std::pair<int, int>> candidates;
+    Contour contour;
+    cv::Point center;
+
+    cv::Mat* handMat = this->matrixPool.getMatrix("hand_detect");
+    cv::Mat* handContoursMat = this->matrixPool.getMatrix("hand_contours");
+    handContoursMat->create(mat->size(), CV_8UC4);
+    cv::inRange(*mat, HSV(10,30,40), HSV(40,100,80), *handMat);
+    //cv::inRange(*hsvImage, HSV(20,30,0), HSV(50,100,80), *handMat);  // Skin color
+    std::vector<cv::Vec4i> hierarchy;
+    cv::findContours(*handMat, contours, hierarchy, cv::RETR_CCOMP, cv::CHAIN_APPROX_SIMPLE);
+
+    for (int contourIndex = 0; contourIndex < contours.size(); contourIndex++)
+    {
+        contour = contours[contourIndex];
+        cv::RotatedRect rr = cv::minAreaRect(contour);
+        double area = cv::contourArea(contour);
+        if (rr.size.area() <5000) continue; // TODO: MAGIC NUMBER
+
+
+        center.x = rr.center.x;
+        center.y = rr.center.y;
+        cv::convexHull(contour, hull, true, true);
+        if (hull.size() < 3) continue;
+        break;
+    }
+
+    if (hull.size() <3) return false;
+
+    // Find all points that are close to each other in the hull
+    std::vector<int> labels;
+    int labelCount = cv::partition(hull, labels, [contour](int ia, int ib) {
+        cv::Point a = contour[ia];
+        cv::Point b = contour[ib];
+        return (((a.x-b.x)*(a.x-b.x))+((a.y-b.y)*(a.y-b.y))) < 30; //TODO: MAGIC NUMBER
+    });
+
+    // Cluster those points together by keeping the first one we find.
+    int currentLabel = 0;
+    while (labelCount)
+    {
+        for (int i = 0; i < labels.size(); i++)
+        {
+            if (labels[i] == currentLabel)
+            {
+                reducedHull.push_back(hull.at(i));
+                break;
+            }
+        }
+        labelCount--;
+        currentLabel++;
+    }
+    cv::convexityDefects(contour, reducedHull, defects);
+
+    if (!defects.size()) return false;
+
+    if (this->matrixPool.getDebug())
+    {
+        Contours cc;
+        cc.push_back(contour);
+        cv::drawContours(*handContoursMat, cc, 0, cv::Scalar(255,255,255));
+    }
+
+    cv::Point lastDefect;
+    lastDefect.x = -1;
+    for (auto d : defects)
+    {
+        cv::Point pstart = contour[d[0]];
+        cv::Point pend = contour[d[1]];
+        cv::Point pfar = contour[d[2]];
+        int depth = d[3];
+        if (depth < 6000) continue;
+
+        // the depth between the concave point and the hull should be large enough
+        if (this->matrixPool.getDebug()) cv::circle(*handContoursMat, pfar, 5, cv::Scalar(255,0,0));
+
+        auto color = cv::Scalar(0,255,255);
+
+        if (lastDefect.x == -1) candidates.push_back({d[0], d[2]});
+        candidates.push_back({d[1], d[2]});
+        lastDefect = pfar;
+    }
+
+    for (int i = 0; i < candidates.size(); i++)
+    {
+        cv::Point cvp = contour[candidates[i].first];
+        QPoint p = QPoint(cvp.x, cvp.y);
+
+        int i1 = candidates[i].first+20;
+        int i2 = candidates[i].first-20;
+        if (i1> contour.size()) i1 -=contour.size();
+        if (i2 < 0) i2 += contour.size();
+
+        cv::Point p1 = contour[i1];
+        cv::Point p2 = contour[i2];
+
+        double fingerWidth = CVNORM(p1.x, p1.y, p2.x, p2.y);
+        if (fingerWidth < 50)
+        {
+            if (this->matrixPool.getDebug()) cv::circle(*handContoursMat, cvp, 5, cv::Scalar(0,0,255));
+            fingers.append(p);
+        }
+
+        cv::Point cvpf = contour[candidates[i].second];
+        if (this->matrixPool.getDebug())
+        {
+            cv::line(*handContoursMat, center, cvpf, cv::Scalar(0,255,0), 1);
+            cv::line(*handContoursMat, cvpf, cvp, cv::Scalar(0,255,255), 1);
+            cv::line(*handContoursMat, p1, p2, cv::Scalar(0,0, 255), 1);
+        }
+    }
+
+    if (fingers.size()) emit fingersDetected(fingers);
+
+
+}
+
+
 void VisionService::processFrame(QVideoFrame frame)
 {
     cv::Point2f v2f[4];
@@ -427,6 +556,7 @@ void VisionService::processFrame(QVideoFrame frame)
     cv::Mat* adaptive = this->matrixPool.getMatrix("adaptive");
     cv::adaptiveThreshold(*grayImage, *adaptive, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY, 5,3);
 
+    this->detectHand(hsvImage);
 
     // Get the track-masked image
     cv::Mat* masked = this->matrixPool.getMatrix("track_masked");

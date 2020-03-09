@@ -16,6 +16,7 @@ public:
     cv::Mat* getMatrix(char* name);
     void reset();
     void setDebug(bool val);
+    bool getDebug();
     QImage dumpMatrix(QString name);
     QVector<QString> getNames();
 private:

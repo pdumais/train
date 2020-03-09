@@ -37,6 +37,8 @@
 
 #define HYPOTHENUS(p) sqrt((p.x()*p.x())+(p.y()*p.y()))
 
+#define CVNORM(x1,y1,x2,y2) sqrt(((x2-x1)*(x2-x1))+((y2-y1)*(y2-y1)))
+
 #define MARKER_TYPE_CROSSING 1
 
 #endif // CONSTANTS_H

@@ -5,7 +5,7 @@ Action::Action()
 
 }
 
-void Action::execute(RailroadLogicService* val, QVector<Annotation*> annotationsInRange, std::function<void()> cb)
+void Action::execute(RailroadLogicService* val, QVector<Annotation*> annotationsInRange, std::function<void()>& cb)
 {
     this->railroadLogicService = val;
     this->callBack = cb;

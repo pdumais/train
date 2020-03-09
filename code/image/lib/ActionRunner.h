@@ -24,6 +24,7 @@ public:
     void onEnterTurnout(SplitterAnnotation* sa);
     void onLeaveTurnout(SplitterAnnotation* sa);
     void onTrainMoved(Train* train);
+    bool isRunningAction();
 
     void run();
     void abort();

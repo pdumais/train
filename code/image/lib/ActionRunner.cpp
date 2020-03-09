@@ -67,6 +67,11 @@ void ActionRunner::abort()
     this->actions.clear();
 }
 
+bool ActionRunner::isRunningAction()
+{
+    return (this->currentAction != nullptr);
+}
+
 void ActionRunner::run()
 {
     //TODO: if running again before the othr run ended, it will skip the first action in the list
@@ -91,8 +96,9 @@ void ActionRunner::runNextAction()
         if (it->getInRange()) inRange.append(it);
     }
 
-    this->currentAction->execute(this->railroadService, inRange,[=](){
+    std::function<void()> f = [this](){
         this->runNextAction();
-    });
+    };
+    this->currentAction->execute(this->railroadService, inRange,f);
 }
 

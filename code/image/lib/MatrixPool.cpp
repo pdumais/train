@@ -47,6 +47,11 @@ void MatrixPool::reset()
     this->index =0;
 }
 
+bool MatrixPool::getDebug()
+{
+    return this->debug;
+}
+
 QVector<QString> MatrixPool::getNames()
 {
     QVector<QString> ret;
