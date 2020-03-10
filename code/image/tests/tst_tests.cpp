@@ -198,7 +198,7 @@ void tests::goFromLoopToInner()
     railroadLogicService->gotoWaypoint();
 
     auto actionList = railroadLogicService->getActionRunner()->getActions();
-    QCOMPARE(actionList.size(),5);
+    QCOMPARE(actionList.size(),6);
 
     QCOMPARE(dynamic_cast<MoveToSplitterAction*>(actionList[0])->getCurrentTrack(), "loop");
     QCOMPARE(dynamic_cast<MoveToSplitterAction*>(actionList[0])->getReverse(), true);
@@ -245,7 +245,7 @@ void tests::goFromInnerToLoop()
     railroadLogicService->gotoWaypoint();
 
     auto actionList = railroadLogicService->getActionRunner()->getActions();
-    QCOMPARE(actionList.size(),5);
+    QCOMPARE(actionList.size(),6);
 
     QCOMPARE(dynamic_cast<MoveToSplitterAction*>(actionList[0])->getCurrentTrack(), "inner");
     QCOMPARE(dynamic_cast<MoveToSplitterAction*>(actionList[0])->getReverse(), true);
@@ -292,7 +292,7 @@ void tests::goFromInnerToOutter()
     railroadLogicService->gotoWaypoint();
 
     auto actionList = railroadLogicService->getActionRunner()->getActions();
-    QCOMPARE(actionList.size(),9);
+    QCOMPARE(actionList.size(),10);
 
     QCOMPARE(dynamic_cast<MoveToSplitterAction*>(actionList[0])->getCurrentTrack(), "inner");
     QCOMPARE(dynamic_cast<MoveToSplitterAction*>(actionList[0])->getReverse(), true);
@@ -360,7 +360,7 @@ void tests::goFromLoopEndToOutter()
     railroadLogicService->gotoWaypoint();
 
     auto actionList = railroadLogicService->getActionRunner()->getActions();
-    QCOMPARE(actionList.size(),5);
+    QCOMPARE(actionList.size(),6);
 
     QCOMPARE(dynamic_cast<MoveToSplitterAction*>(actionList[0])->getCurrentTrack(), "loop");
     QCOMPARE(dynamic_cast<MoveToSplitterAction*>(actionList[0])->getReverse(), false);
@@ -395,14 +395,14 @@ void tests::goFromLoopEndToOutter()
 
 void tests::goFromLoopEndToMainAfterOutter()
 {
-    setTrainPosition(QPoint(853,816));
+    setTrainPosition(QPoint(761,850));
 
     QPoint waypoint(291,753);
     railroadLogicService->setWaypoint(waypoint);
     railroadLogicService->gotoWaypoint();
 
     auto actionList = railroadLogicService->getActionRunner()->getActions();
-    QCOMPARE(actionList.size(),5);
+    QCOMPARE(actionList.size(),6);
 
     QCOMPARE(dynamic_cast<MoveToSplitterAction*>(actionList[0])->getCurrentTrack(), "loop");
     QCOMPARE(dynamic_cast<MoveToSplitterAction*>(actionList[0])->getReverse(), false);
@@ -443,7 +443,7 @@ void tests::goFromOutterToLoop()
     railroadLogicService->gotoWaypoint();
 
     auto actionList = railroadLogicService->getActionRunner()->getActions();
-    QCOMPARE(actionList.size(),5);
+    QCOMPARE(actionList.size(),6);
 
     QCOMPARE(dynamic_cast<MoveToSplitterAction*>(actionList[0])->getCurrentTrack(), "outter");
     QCOMPARE(dynamic_cast<MoveToSplitterAction*>(actionList[0])->getReverse(), false);
@@ -486,7 +486,7 @@ void tests::goFromOutterToFarEnd()
     SplitterAnnotation *firstSplitter = outterSplitter;
 
     auto actionList = railroadLogicService->getActionRunner()->getActions();
-    QCOMPARE(actionList.size(),5);
+    QCOMPARE(actionList.size(),6);
 
     QCOMPARE(dynamic_cast<MoveToSplitterAction*>(actionList[0])->getCurrentTrack(), "outter");
     QCOMPARE(dynamic_cast<MoveToSplitterAction*>(actionList[0])->getReverse(), false);

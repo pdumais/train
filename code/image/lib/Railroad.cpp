@@ -75,6 +75,7 @@ int Railroad::getClosestTurnout(SplitterAnnotation* current, QString track, bool
         }
         QPoint newPoint = poly[index];
         distance += HYPOTHENUS((newPoint-lastPoint));
+        lastPoint = newPoint;
 
         if (reverse) index--; else index++;
         if (reverse) section.prepend(newPoint); else section.append(newPoint);
@@ -85,7 +86,7 @@ int Railroad::getClosestTurnout(SplitterAnnotation* current, QString track, bool
             if (s == current) continue;
 
             QPoint realPos =s->getPosition();
-            if (HYPOTHENUS((realPos-newPoint)) <= (60))  // TODO: dont hardcode 60 like this. But it's why we use in turnout detection
+            if ((s->getTrack1() == currentTrack->getName() || s->getTrack2() == currentTrack->getName() || s->getInputTrack() == currentTrack->getName()) && HYPOTHENUS((realPos-newPoint)) <= (60)) //TODO: MAGIC NUMBER
             {
                 //this splitter is on our track
                 splitter = s;

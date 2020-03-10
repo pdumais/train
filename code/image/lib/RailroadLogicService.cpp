@@ -12,6 +12,7 @@
 #include <actions/MoveToSplitterAction.h>
 #include <actions/ChangeTrackAction.h>
 #include <actions/InitSplittersAction.h>
+#include <actions/ClearWaypointAction.h>
 #include "displayservice.h"
 #include "Train.h"
 #include "PerformanceMonitor.h"
@@ -431,7 +432,7 @@ void RailroadLogicService::gotoWaypoint()
         this->actionRunner->addAction(new MoveToSplitterAction(dstNode->data, sourceTrack, targetTrack, pi.direction));
         this->actionRunner->addAction(new ChangeTrackAction(dstNode->data, sourceTrack, targetTrack, commingFromT0));
     }
-
+    this->actionRunner->addAction(new ClearWaypointAction());
     this->actionRunner->run();
 }
 

@@ -59,6 +59,8 @@ void DisplayService::init(QGraphicsView* view)
         QTextStream(&name) << "wagon" << i;
         this->createWagonItem(name,DisplayService::ViewType::All);
     }
+
+    this->updateWayPoint();
 }
 
 void DisplayService::on_operation_item_selected()
@@ -101,6 +103,15 @@ void DisplayService::updateWayPoint()
     QGraphicsPixmapItem* w = dynamic_cast<QGraphicsPixmapItem*>(this->item("_waypoint"));
     QGraphicsLineItem* l = dynamic_cast<QGraphicsLineItem*>(this->item("_waypointline"));
     QGraphicsSimpleTextItem* text = dynamic_cast<QGraphicsSimpleTextItem*>(this->item("_waypointtext"));
+
+    if (this->wayPoint.isNull())
+    {
+        w->hide();
+        l->hide();
+        text->hide();
+        return;
+    }
+
     w->setPos(this->wayPoint);
     QPen pen(QColor(200,100,100));
     pen.setWidth(4);
@@ -120,7 +131,10 @@ void DisplayService::updateWayPoint()
     text->setRotation(-linef.angle());
     text->font().setPixelSize(24);
     text->setPos(((line.p2()-line.p1())/2)+line.p1());
-    
+
+    w->show();
+    l->show();
+    text->show();
 }
 
 QGraphicsVideoItem* DisplayService::createVideoItem()

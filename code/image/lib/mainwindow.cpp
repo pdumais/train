@@ -12,14 +12,14 @@
 #include "splitterannotation.h"
 
 MainWindow::MainWindow(TrainController *controller, 
-        Configuration *configuration, 
-        DisplayService* vision, 
-        VisionService* decoder, 
-        RailroadLogicService* railroadService, 
-        TrackLearningService* trackLearningService, 
-        LightService* lightService, 
-        AudioService* audioService,
-        QWidget *parent)
+      Configuration *configuration,
+      DisplayService* vision,
+      VisionService* decoder,
+      RailroadLogicService* railroadService,
+      TrackLearningService* trackLearningService,
+      LightService* lightService,
+      AudioService* audioService,
+      QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
 {
@@ -100,7 +100,7 @@ void MainWindow::setupFSM()
     this->views.addState(operateView);
     this->views.addState(learnView);
     this->views.addState(debugView);
-    this->views.setInitialState(learnView);
+    this->views.setInitialState(operateView);
 
     learningInactiveState->addTransition(this->ui->learntrack_button, SIGNAL(clicked(bool)), learningActiveState);
     learningActiveState->addTransition(this->ui->learntrack_button, SIGNAL(clicked(bool)), learningInactiveState);
