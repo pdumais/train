@@ -9,6 +9,7 @@
 #include "LightService.h"
 #include "RailroadLogicService.h"
 #include "AudioService.h"
+#include "Functions.h"
 
 #define CONFIG_FILE "/home/pat/projects/train/data/config.json"
 #define TRACK_DATA "/home/pat/projects/train/data/tracks.dat"
@@ -18,6 +19,7 @@ int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
 
+    init_app();
     Configuration conf(TRACK_DATA, CONFIG_FILE);
     AudioService audioService(conf.getSoundLevel());
     VisionService visionService(1920,1080);

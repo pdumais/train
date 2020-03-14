@@ -6,6 +6,7 @@
 #define COUNT_MAX 30
 
 QMap<QString,PerformanceMonitor::PerformanceCounter> PerformanceMonitor::counters;
+QMutex PerformanceMonitor::mapLock;
 
 PerformanceMonitor::PerformanceMonitor()
 {
@@ -14,6 +15,7 @@ PerformanceMonitor::PerformanceMonitor()
 
 void PerformanceMonitor::tic(QString name)
 {
+    QMutexLocker locker(&PerformanceMonitor::mapLock);
     if (!PerformanceMonitor::counters.contains(name))
     {
         PerformanceMonitor::counters[name] = PerformanceCounter{ QTime(), 0 };
@@ -24,7 +26,7 @@ void PerformanceMonitor::tic(QString name)
 
 void PerformanceMonitor::toc(QString name)
 {
-
+    QMutexLocker locker(&PerformanceMonitor::mapLock);
 
     PerformanceMonitor::counters[name].accumulator +=  PerformanceMonitor::counters[name].timer.elapsed();
     PerformanceMonitor::counters[name].count++;

@@ -82,8 +82,7 @@ void ActionRunner::runNextAction()
 {
     if (this->currentAction)
     {
-        // TODO: use QObject::deleteLater() instead
-        delete this->currentAction;
+            this->currentAction->deleteLater();
         this->currentAction = nullptr;
     }
     if (this->actions.size() < 1) return;

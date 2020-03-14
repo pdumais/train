@@ -33,8 +33,7 @@ RailroadLogicService::RailroadLogicService(ITrainController *ctrl, IVisionServic
     this->train = nullptr;
 
     connect(this->vision, SIGNAL(fingersDetected(QVector<QPoint>)), this, SLOT(on_fingers_detected(QVector<QPoint>)));
-    connect(this->vision, SIGNAL(frameProcessed()), this, SLOT(on_frame_processed()));
-    connect(this->vision, SIGNAL(locomotivePositionChanged(CVObject)), this, SLOT(on_locomotive_changed(CVObject)));
+    connect(this->vision, SIGNAL(frameProcessed(CVObject, QVector<CVObject>)), this, SLOT(on_frame_processed(CVObject, QVector<CVObject>)));
     connect(this->vision, SIGNAL(markerFound(DetectedMarker)), this, SLOT(on_marker_found(DetectedMarker)));
     connect(this->display, SIGNAL(waypointSet(QPoint)), this, SLOT(on_waypoint_set(QPoint)));
 
@@ -80,20 +79,6 @@ void RailroadLogicService::on_waypoint_set(QPoint p)
     this->setWaypoint(p);
 }
 
-void RailroadLogicService::setDebugImageName(QString name)
-{
-    this->debugImageName = name;
-}
-
-void RailroadLogicService::on_frame_processed()
-{
-    if (!this->debugImageName.isEmpty())
-    {
-        QGraphicsPixmapItem* pm = (QGraphicsPixmapItem*)this->display->item("debug");
-        pm->setPixmap(this->vision->getDebugImage(this->debugImageName));
-    }
-}
-
 void RailroadLogicService::on_fingers_detected(QVector<QPoint> positions)
 {
     if (this->fingerCountlastUpdate.elapsed() > 2000)
@@ -131,13 +116,13 @@ void RailroadLogicService::on_fingers_detected(QVector<QPoint> positions)
 
 }
 
-void RailroadLogicService::on_locomotive_changed(CVObject obj)
+void RailroadLogicService::on_frame_processed(CVObject obj, QVector<CVObject> wagons)
 {
     PerformanceMonitor::tic("RailroadLogicService::on_locomotive_changed");
 
     if (this->train) delete this->train;
     train = new Train(obj);
-    for (auto w : this->vision->wagons())
+    for (auto w : wagons)
     {
         train->addWagon(w);
     }

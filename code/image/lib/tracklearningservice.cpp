@@ -12,7 +12,7 @@ TrackLearningService::TrackLearningService(TrainController *ctrl, VisionService*
     this->learning = false;
     this->path = nullptr;
 
-    connect(this->vision, SIGNAL(locomotivePositionChanged(CVObject)), this, SLOT(on_locomotive_changed(CVObject)));
+    connect(this->vision, SIGNAL(frameProcessed(CVObject, QVector<CVObject>)), this, SLOT(on_frame_processed(CVObject, QVector<CVObject>)));
     connect(this->vision, SIGNAL(locomotiveLost()), this, SLOT(on_locomotive_lost()));
 
 }
@@ -30,7 +30,7 @@ void TrackLearningService::on_locomotive_lost()
     this->controller->setSpeed(0);
 }
 
-void TrackLearningService::on_locomotive_changed(CVObject obj)
+void TrackLearningService::on_frame_processed(CVObject obj, QVector<CVObject>)
 {
     int x = obj.getCenter().x();
     int y = obj.getCenter().y();

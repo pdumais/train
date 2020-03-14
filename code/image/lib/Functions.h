@@ -17,4 +17,6 @@ private:
     static std::function<void(int)> sleepFunction;    
 };
 
+void init_app();
+
 #endif // FUNCTIONS_H

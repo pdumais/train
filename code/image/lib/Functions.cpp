@@ -1,7 +1,9 @@
 #include "Functions.h"
-#include <QTimer>                
+#include "IVisionService.h"
+#include "cvobject.h"
+#include <QTimer>
 #include <QEventLoop>  
-
+#include <QMetaType>
 
 
 std::function<void(int)> Functions::sleepFunction;    
@@ -43,4 +45,12 @@ uint32_t Functions::perimeter(QPolygon poly)
     }
 
     return ret;
+}
+
+void init_app()
+{
+    qRegisterMetaType<CVObject>("CVObject");
+    qRegisterMetaType<DetectedMarker>("DetectedMarker");
+    qRegisterMetaType<QVector<CVObject>>("QVector<CVObject>");
+
 }

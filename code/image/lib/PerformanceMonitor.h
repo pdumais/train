@@ -2,6 +2,7 @@
 #define PERFORMANCEMONITOR_H
 
 #include <QMap>
+#include <QMutex>
 #include <QTime>
 
 
@@ -22,6 +23,7 @@ private:
     };
 
     static QMap<QString,PerformanceCounter> counters;
+    static QMutex mapLock;
 };
 
 #endif // PERFORMANCEMONITOR_H

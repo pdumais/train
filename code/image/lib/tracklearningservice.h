@@ -25,7 +25,7 @@ signals:
     void    learningStopped(QString trackName);
 
 public slots:
-    void on_locomotive_changed(CVObject);
+    void on_frame_processed(CVObject, QVector<CVObject>);
     void on_locomotive_lost();
 
 private:

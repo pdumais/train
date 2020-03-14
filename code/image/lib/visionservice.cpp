@@ -13,15 +13,28 @@
 #include "PerformanceMonitor.h"
 #include <QMap>
 
-#define MATRIX_LOCO_MASK 0
-#define MATRIX_WAGON_MASK 1
-#define MATRIX_CROSSINGS_MASK 2
-#define MATRIX_ALL_GRAY 3
+//#define MATRIX_LOCO_MASK 0
+//#define MATRIX_WAGON_MASK 1
+//#define MATRIX_CROSSINGS_MASK 2
+//#define MATRIX_ALL_GRAY 3
 
+#define MATRIX_ORIGINAL             0
+#define MATRIX_GRAY_ALL             1
+#define MATRIX_HSV_ALL              2
+#define MATRIX_ADAPTIVE             3
+
+#define MATRIX_DIFFERENCE           0
+
+#define MATRIX_TRACK_MASKED         0
+#define MATRIX_LOCO_MASK            1
+#define MATRIX_WAGON_MASK           2
+#define MATRIX_MARKERS_CONTOURS     3
 
 #define SKIP_FRAMES 1
 #define DETECTION_MISS_THRESHOLD 4
 #define HSV(h,s,v) cv::Scalar(int(double(h)/2.0),int((double(s)/100.0)*255.0),int((double(v)/100.0)*255.0))
+
+
 
 std::string whitelist = "AFHL";
 
@@ -34,8 +47,15 @@ VisionService::VisionService(int w, int h)
     // TODO: make this configurable
     this->detectionRestriction = cv::Rect(200,0,w-400,h);
 
+    this->matrixPool = new MatrixPool();
+    this->trackMatrixPool = new MatrixPool();
+    this->handMatrixPool = new MatrixPool();
+
     this->videoProbe = new QVideoProbe();
     connect(this->videoProbe, SIGNAL(videoFrameProbed(QVideoFrame)), this, SLOT(processFrame(QVideoFrame)));
+    connect(this->matrixPool, SIGNAL(debugMatrixReady(QImage)), this, SIGNAL(debugMatrixReady(QImage)));
+    connect(this->trackMatrixPool, SIGNAL(debugMatrixReady(QImage)), this, SIGNAL(debugMatrixReady(QImage)));
+    connect(this->handMatrixPool, SIGNAL(debugMatrixReady(QImage)), this, SIGNAL(debugMatrixReady(QImage)));
     this->skipFrames = SKIP_FRAMES;
 
     this->locomotiveSpecs.minColor = HSV(340,0,0);    // pink
@@ -62,12 +82,30 @@ VisionService::VisionService(int w, int h)
 
     this->restrictLocomotiveDetectionToTracks = true;
 
+    this->matrixPool->addName(MATRIX_GRAY_ALL, "gray_all");
+    this->matrixPool->addName(MATRIX_HSV_ALL, "hsv_all");
+    this->matrixPool->addName(MATRIX_ADAPTIVE, "adaptive");
+    this->trackMatrixPool->addName(MATRIX_TRACK_MASKED, "track_masked");
+    this->trackMatrixPool->addName(MATRIX_LOCO_MASK, "loco_mask");
+    this->trackMatrixPool->addName(MATRIX_WAGON_MASK,"wagon_mask");
+    this->trackMatrixPool->addName(MATRIX_MARKERS_CONTOURS,"markers_contours");
+    this->handMatrixPool->addName(MATRIX_DIFFERENCE, "difference");
+
+    this->staticImage = cv::Mat(h,w,CV_8UC4);
+
+    this->handWorker = new FrameProcessingWorker([this](auto wi){ this->workOnHandDetection(wi.original, wi.hsv, wi.gray, wi.adaptive); });
+    this->trackWorker = new FrameProcessingWorker([this](auto wi){ this->workOnTrackDetection(wi.original, wi.hsv, wi.gray, wi.adaptive); });
 }
 
 
 VisionService::~VisionService()
 {
+    this->handWorker->join();
+    this->trackWorker->join();
+    delete this->matrixPool;
     delete this->videoProbe;
+    delete this->handWorker;
+    delete this->trackWorker;
 }
 
 void VisionService::enableAnnotationDetection(bool v)
@@ -178,11 +216,11 @@ QVector<CVObject> VisionService::wagons()
     return ret;
 }
 
-std::vector<cv::RotatedRect> VisionService::getObjects(cv::Mat* img, DetectionSpecs specs, Contours& contours)
+std::vector<cv::RotatedRect> VisionService::getObjects(int matrixPoolIndex, std::shared_ptr<cv::Mat> img, DetectionSpecs specs, Contours& contours)
 {
     std::vector<cv::RotatedRect> ret;
 
-    cv::Mat* mat = this->matrixPool.getMatrix("object_detect");
+    std::shared_ptr<cv::Mat> mat = this->trackMatrixPool->getMatrix(matrixPoolIndex);
     cv::Mat tmp;
     cv::inRange(*img, specs.minColor, specs.maxColor, *mat);
     cv::erode(*mat,tmp,cv::Mat());
@@ -255,14 +293,11 @@ cv::RotatedRect VisionService::getEnlargedRect(cv::RotatedRect r, int newW, int 
 
 }
 
-bool VisionService::detectWagons(cv::Mat* mat)
+bool VisionService::detectWagons(std::shared_ptr<cv::Mat> mat)
 {
     Contours contours;
 
-    this->matrixPool.setContext("wagons");
-    std::vector<cv::RotatedRect> wagons = this->getObjects(mat, this->wagonSpecs, contours);
-    //this->identifyWagons(wagons, grayImage);
-
+    std::vector<cv::RotatedRect> wagons = this->getObjects(MATRIX_WAGON_MASK, mat, this->wagonSpecs, contours);
     return this->processDetectedWagons(wagons);
 }
 
@@ -282,12 +317,11 @@ bool VisionService::processDetectedWagons(std::vector<cv::RotatedRect>& wagons)
     return atLeastOneDetected;
 }
 
-bool VisionService::detectLocomotive(cv::Mat* mat, DetectionSpecs& specs)
+bool VisionService::detectLocomotive(std::shared_ptr<cv::Mat> mat, DetectionSpecs& specs)
 {
     Contours contours;
 
-    this->matrixPool.setContext("locomotive");
-    std::vector<cv::RotatedRect> points = this->getObjects(mat, specs, contours);
+    std::vector<cv::RotatedRect> points = this->getObjects(MATRIX_LOCO_MASK, mat, specs, contours);
 
     return this->processDetectedLocomotive(points);
 }
@@ -314,26 +348,15 @@ bool VisionService::processDetectedLocomotive(std::vector<cv::RotatedRect>& loco
 }
 
 
-void VisionService::detectMarkers(cv::Mat* mat, cv::Mat* adaptive)
+void VisionService::detectMarkers(std::shared_ptr<cv::Mat> mat, std::shared_ptr<cv::Mat> adaptive)
 {
     Contours contours;
-    this->matrixPool.setContext("markers");
-
-/*    std::vector<cv::RotatedRect> crossings = this->getObjects(mat, this->crossingSpecs, contours);
-    for (auto c : crossings)
-    {
-        DetectedMarker dm;
-        dm.pos = QPoint(c.center.x, c.center.y);
-        dm.code = MARKER_TYPE_CROSSING;
-        emit markerFound(dm);
-    }*/
-
 
     cv::Mat tmp;
-    cv::Mat* cntmat = this->matrixPool.getMatrix("contours");
-    cv::Mat mc(adaptive->size(),CV_8UC1);
+    std::shared_ptr<cv::Mat> cntmat = this->trackMatrixPool->getMatrix(MATRIX_MARKERS_CONTOURS);
+    cv::Mat mc(adaptive.get()->size(),CV_8UC1);
     mc.setTo(0);
-    cntmat->create(adaptive->size(), CV_8UC1);
+    cntmat.get()->create(adaptive.get()->size(), CV_8UC1);
     erode(*adaptive, tmp, cv::Mat());
     erode(tmp, *adaptive, cv::Mat());
     std::vector<cv::Vec4i> hierarchy;
@@ -404,8 +427,10 @@ cv::Mat VisionService::generateCrossingTemplate(int w, int h)
 }
 
 
-bool VisionService::detectHand(cv::Mat* mat)
+bool VisionService::detectHand(std::shared_ptr<cv::Mat> mat)
 {
+
+/*    
 //TODO: Do this in another thread, on another core
 
     Contours contours;
@@ -527,7 +552,8 @@ bool VisionService::detectHand(cv::Mat* mat)
 
     if (fingers.size()) emit fingersDetected(fingers);
 
-
+*/
+    return true;
 }
 
 
@@ -537,61 +563,33 @@ void VisionService::processFrame(QVideoFrame frame)
     cv::Point v[4];
     cv::Mat tmp, tmp2, tmp3;
 
-    PerformanceMonitor::tic("VisionService::processFrame");
-
-    this->matrixPool.reset();
-    this->matrixPool.setContext("process_frame");
+    this->matrixPool->startWorking();
 
     // The frame comming from the camera are RGB32. Other cams could return something else so we'd need to adjust this.
     frame.map(QAbstractVideoBuffer::ReadOnly);
 
+    std::shared_ptr<cv::Mat> original = this->matrixPool->getMatrix(MATRIX_ORIGINAL);
+    std::shared_ptr<cv::Mat> grayImage = this->matrixPool->getMatrix(MATRIX_GRAY_ALL);
+    std::shared_ptr<cv::Mat> hsvImage = this->matrixPool->getMatrix(MATRIX_HSV_ALL);
 
-    cv::Mat frameMat(frame.height(), frame.width(), CV_8UC4, frame.bits());
-    cv::Mat* grayImage = this->matrixPool.getMatrix("gray_all");
-    cv::Mat* hsvImage = this->matrixPool.getMatrix("hsv_all");
-    grayImage->create(frame.height(), frame.width(), CV_8UC1);
-    hsvImage->create(frame.height(), frame.width(), CV_8UC4);
-    cv::cvtColor(frameMat, *grayImage, cv::COLOR_BGR2GRAY);
-    cv::cvtColor(frameMat, *hsvImage, cv::COLOR_BGR2HSV);
-    cv::Mat* adaptive = this->matrixPool.getMatrix("adaptive");
-    cv::adaptiveThreshold(*grayImage, *adaptive, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY, 5,3);
+    *original = cv::Mat(frame.height(), frame.width(), CV_8UC4, frame.bits());
 
-    this->detectHand(hsvImage);
+    grayImage.get()->create(frame.height(), frame.width(), CV_8UC1);
+    hsvImage.get()->create(frame.height(), frame.width(), CV_8UC4);
+    cv::cvtColor(*original, *grayImage.get(), cv::COLOR_BGR2GRAY);
+    cv::cvtColor(*original, *hsvImage.get(), cv::COLOR_BGR2HSV);
+    std::shared_ptr<cv::Mat> adaptive = this->matrixPool->getMatrix(MATRIX_ADAPTIVE);
+    cv::adaptiveThreshold(*grayImage.get(), *adaptive.get(), 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY, 5,3);
 
-    // Get the track-masked image
-    cv::Mat* masked = this->matrixPool.getMatrix("track_masked");
-    frameMat.copyTo(tmp, this->trackMask);
-    cv::cvtColor(tmp, *masked, cv::COLOR_BGR2HSV);
-    // At this point we have 2 images: "hsvImage" which is the whole image. and "masked" which is restricted on the map
+    WorkItem wi;
+    wi.hsv = hsvImage;
+    wi.gray = grayImage;
+    wi.adaptive = adaptive;
+    wi.original = original;
+    this->handWorker->queueWork(wi);
+    this->trackWorker->queueWork(wi);
 
-
-    bool locoDetected = false;
-
-    if (this->annotationDetectionEnabled)
-    {
-        this->detectMarkers(masked, adaptive);
-    }
-
-    // Detect wagons on the masked image
-    this->detectWagons(masked);
-
-    // Get locomotive
-    if (this->restrictLocomotiveDetectionToTracks)
-    {
-        locoDetected = this->detectLocomotive(masked, this->locomotiveSpecs);
-    }
-    else
-    {
-        locoDetected = this->detectLocomotive(hsvImage, this->locomotiveSpecsOffTracks);
-    }
-    if (locoDetected)
-    {
-        emit locomotivePositionChanged(this->locomotive());
-    }
-
-    emit frameProcessed();
-
-    PerformanceMonitor::toc("VisionService::processFrame");
+    this->matrixPool->stopWorking();
 }
 
 
@@ -624,17 +622,128 @@ void VisionService::setTrackMask(QVector<QPolygon> tracks)
 }
 
 
-QPixmap VisionService::getDebugImage(QString name)
+void VisionService::disableDebug()
 {
-     return QPixmap::fromImage(this->matrixPool.dumpMatrix(name));
+    this->matrixPool->enableDebug(-1);
 }
 
-void VisionService::enableDebug(bool val)
+void VisionService::enableDebug(QString name)
 {
-    this->matrixPool.setDebug(val);
+    this->matrixPool->enableDebug(-1);
+    this->trackMatrixPool->enableDebug(-1);
+    this->handMatrixPool->enableDebug(-1);
+
+    auto names = this->matrixPool->getNames();
+    for (int key : names.keys())
+    {
+        if (names[key] == name)
+        {
+            this->matrixPool->enableDebug(key);
+            return;
+        }
+    }
+    names = this->trackMatrixPool->getNames();
+    for (int key : names.keys())
+    {
+        if (names[key] == name)
+        {
+            this->trackMatrixPool->enableDebug(key);
+            return;
+        }
+    }
+    names = this->handMatrixPool->getNames();
+    for (int key : names.keys())
+    {
+        if (names[key] == name)
+        {
+            this->handMatrixPool->enableDebug(key);
+            return;
+        }
+    }
+
 }
 
 QVector<QString> VisionService::getDebugNames()
 {
-    return this->matrixPool.getNames();
+    QVector<QString> ret;
+    for (QString name : this->matrixPool->getNames())
+    {
+        ret.append(name);
+    }
+    for (QString name : this->trackMatrixPool->getNames())
+    {
+        ret.append(name);
+    }
+    for (QString name : this->handMatrixPool->getNames())
+    {
+        ret.append(name);
+    }
+
+    return ret; 
+}
+
+void VisionService::workOnTrackDetection(std::shared_ptr<cv::Mat> original, std::shared_ptr<cv::Mat> hsv, std::shared_ptr<cv::Mat> gray, std::shared_ptr<cv::Mat> adaptive)
+{
+    PerformanceMonitor::tic("VisionService::workOnTrackDetection");
+    this->trackMatrixPool->startWorking();
+
+    // Get the track-masked image
+    cv::Mat tmp;
+    std::shared_ptr<cv::Mat> masked = this->trackMatrixPool->getMatrix(MATRIX_TRACK_MASKED);
+    hsv.get()->copyTo(*masked, this->trackMask);
+
+    bool locoDetected = false;
+
+    if (this->annotationDetectionEnabled)
+    {
+        this->detectMarkers(masked, adaptive);
+    }
+
+    // Detect wagons on the masked image
+    this->detectWagons(masked);
+
+    // Get locomotive
+    if (this->restrictLocomotiveDetectionToTracks)
+    {
+        locoDetected = this->detectLocomotive(masked, this->locomotiveSpecs);
+    }
+    else
+    {
+        locoDetected = this->detectLocomotive(hsv, this->locomotiveSpecsOffTracks);
+    }
+
+    emit frameProcessed(this->locomotive(), this->wagons());
+
+    this->trackMatrixPool->stopWorking();
+    PerformanceMonitor::toc("VisionService::workOnTrackDetection");
+}
+
+void VisionService::workOnHandDetection(std::shared_ptr<cv::Mat> original, std::shared_ptr<cv::Mat> hsv, std::shared_ptr<cv::Mat> gray, std::shared_ptr<cv::Mat> adaptive)
+{
+    cv::Mat tmp;
+    cv::Mat tmp2;
+
+    PerformanceMonitor::tic("VisionService::workOnHandDetection");
+    this->handMatrixPool->startWorking();
+
+
+    std::shared_ptr<cv::Mat> diff = this->handMatrixPool->getMatrix(MATRIX_DIFFERENCE);
+    //diff->create(VIDEO_HEIGHT, VIDEO_WIDTH, CV_8UC1);
+    cv::absdiff(this->staticImage, *original, tmp2);
+    cv::cvtColor(tmp2, tmp, cv::COLOR_BGR2GRAY);
+    if (cv::mean(tmp)[0] > 60)
+    {
+        // If the background changed drastically, update it
+        original->copyTo(this->staticImage);
+    }
+
+//    cv::adaptiveThreshold(tmp, *diff, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY, 5,3);
+    cv::threshold(tmp, *diff, 40, 255, 0);
+
+
+
+
+    this->handMatrixPool->stopWorking();
+    //this->detectHand(hsv);
+    PerformanceMonitor::toc("VisionService::workOnHandDetection");
 }

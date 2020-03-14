@@ -42,6 +42,7 @@ SOURCES += \
     actions/MoveToSplitterAction.cpp \
     actions/InitSplittersAction.cpp \
     MatrixPool.cpp \
+    FrameProcessingWorker.cpp \
     actions/ClearWaypointAction.cpp
 
 
@@ -79,6 +80,7 @@ HEADERS += \
     actions/MoveToSplitterAction.h \
     actions/InitSplittersAction.h \
     MatrixPool.h \
+    FrameProcessingWorker.h \
     actions/ClearWaypointAction.h
 
 

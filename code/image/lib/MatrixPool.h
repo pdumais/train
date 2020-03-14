@@ -1,30 +1,39 @@
 #pragma once
 
 #include "opencv2/core/core.hpp"
+#include <QObject>
 #include <QString>
 #include <QImage>
+#include <QMap>
+#include <memory>
 
 #define MAX_MATRICES 15
 
-class MatrixPool
+class MatrixPool: public QObject
 {
+    Q_OBJECT
+
 public:
     MatrixPool();
     ~MatrixPool();
 
-    void setContext(char* name);
-    cv::Mat* getMatrix(char* name);
-    void reset();
-    void setDebug(bool val);
-    bool getDebug();
-    QImage dumpMatrix(QString name);
-    QVector<QString> getNames();
+    std::shared_ptr<cv::Mat> getMatrix(int id);
+    void enableDebug(int id);
+    bool getDebugEnabled();
+    void addName(int id, QString name);
+    QMap<int, QString> getNames();
+    void startWorking();
+    void stopWorking();
+
+signals:
+    void debugMatrixReady(QImage);
+
 private:
+
+    std::shared_ptr<cv::Mat>  debugMatrix;
     QString names[MAX_MATRICES];
-    cv::Mat matrices[MAX_MATRICES];
-    QString currentContext;
-    int index;
-    bool debug;
+    int debugIndex;
+    int lockedDebugIndex;
 };
 
 

@@ -41,12 +41,10 @@ public:
     Railroad* getRailroad();
 
     TrainPosition findClosestPoint(QPoint);
-    void setDebugImageName(QString name);
 
 
 public slots:
-    void on_frame_processed();
-    void on_locomotive_changed(CVObject);
+    void on_frame_processed(CVObject obj, QVector<CVObject> wagons);
     void on_marker_found(DetectedMarker);
     void on_waypoint_set(QPoint);
     void on_fingers_detected(QVector<QPoint>);
@@ -88,7 +86,6 @@ private:
     Train* train;
     Railroad* railroad;
     int resumeSpeed;
-    QString debugImageName;
 
     void inRange(const QVector<Annotation*>& annotations, QVector<Annotation*>& targets, const CVObject& obj, int threshold);
     int getDistanceOnTrack(Track* track, QPoint source, QPoint destination, bool direction);

@@ -22,15 +22,11 @@ public:
 
     virtual QVideoProbe* probe() =0;
 
-    virtual CVObject locomotive() =0;
-    virtual QVector<CVObject> wagons() =0;
-    virtual std::vector<DetectedMarker> markers() =0;
-
     virtual void setTrackMask(QVector<QPolygon> tracks) =0;
     virtual void setRestrictLocomotiveDetectionToTracks(bool v) =0;
     virtual void enableAnnotationDetection(bool v) =0;
-    virtual QPixmap getDebugImage(QString name) = 0;
-    virtual void enableDebug(bool val) = 0;
+    virtual void enableDebug(QString name) = 0;
+    virtual void disableDebug() = 0;
     virtual QVector<QString> getDebugNames() = 0;
 signals:
     void locomotivePositionChanged(CVObject);
@@ -38,5 +34,7 @@ signals:
     void markerFound(DetectedMarker);
 
 };
+
+Q_DECLARE_METATYPE(DetectedMarker);
 
 #endif // IVISIONSERVICE_H

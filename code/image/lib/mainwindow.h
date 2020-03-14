@@ -73,6 +73,8 @@ private slots:
 
     void on_debugImages_currentIndexChanged(const QString &arg1);
 
+    void on_debug_image(QImage);
+
 private:
     Ui::MainWindow *ui;
     bool learning;

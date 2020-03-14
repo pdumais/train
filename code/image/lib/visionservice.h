@@ -1,12 +1,14 @@
 #pragma once
 
 #include <QObject>
+#include <QTime>
 #include <QVideoProbe>
 #include "cvobject.h"
 #include "opencv/cv.h"
 #include "opencv2/text.hpp"
 #include "IVisionService.h"
 #include "MatrixPool.h"
+#include "FrameProcessingWorker.h"
 
 typedef std::vector<cv::Point> Contour;
 typedef std::vector<Contour> Contours;
@@ -20,24 +22,22 @@ public:
 
     QVideoProbe* probe() override;
 
-    CVObject locomotive() override;
-    QVector<CVObject> wagons() override;
-    std::vector<DetectedMarker> markers() override;
-
+    // TODO: need to make the following methods thread-safe
     void setTrackMask(QVector<QPolygon> tracks) override;
     void setRestrictLocomotiveDetectionToTracks(bool v) override;
     void enableAnnotationDetection(bool v) override;
 
-    QPixmap getDebugImage(QString name) override;
-    void enableDebug(bool val) override;
+    void enableDebug(QString name) override;
+    void disableDebug() override;
     QVector<QString> getDebugNames() override;
 
 signals:
-    void locomotivePositionChanged(CVObject);
-    void frameProcessed();
+    void frameProcessed(CVObject, QVector<CVObject>);
+
     void locomotiveLost();
     void markerFound(DetectedMarker);
     void fingersDetected(QVector<QPoint>);
+    void debugMatrixReady(QImage);
 
 public slots:
     void processFrame(QVideoFrame);
@@ -77,18 +77,33 @@ private:
     DetectionSpecs crossingSpecs;
     cv::Ptr<cv::text::OCRTesseract> ocr;
 
-    std::vector<cv::RotatedRect> getObjects(cv::Mat* img, DetectionSpecs specs, Contours&);
+    std::vector<cv::RotatedRect> getObjects(int matrixPoolIndex, std::shared_ptr<cv::Mat> img, DetectionSpecs specs, Contours&);
     cv::RotatedRect getEnlargedRect(cv::RotatedRect r, int newW, int newH);
     QLineF getLine(cv::RotatedRect r);
     cv::Mat generateCrossingTemplate(int w, int h);
 
-    bool detectHand(cv::Mat* mat);
-    bool detectWagons(cv::Mat* mat);
-    bool detectLocomotive(cv::Mat* mat, DetectionSpecs& specs);
-    void detectMarkers(cv::Mat* mat, cv::Mat* adaptive);
+    bool detectHand(std::shared_ptr<cv::Mat> mat);
+    bool detectWagons(std::shared_ptr<cv::Mat> mat);
+    bool detectLocomotive(std::shared_ptr<cv::Mat> mat, DetectionSpecs& specs);
+    void detectMarkers(std::shared_ptr<cv::Mat> mat, std::shared_ptr<cv::Mat> adaptive);
 
     bool processDetectedWagons(std::vector<cv::RotatedRect>& wagons);
     bool processDetectedLocomotive(std::vector<cv::RotatedRect>& loco);
 
-    MatrixPool matrixPool;
+    MatrixPool* matrixPool;
+    MatrixPool* trackMatrixPool;
+    MatrixPool* handMatrixPool;
+
+    FrameProcessingWorker* trackWorker;
+    FrameProcessingWorker* handWorker;
+
+    void workOnTrackDetection(std::shared_ptr<cv::Mat> original, std::shared_ptr<cv::Mat> hsv, std::shared_ptr<cv::Mat> gray, std::shared_ptr<cv::Mat> adaptive);
+    void workOnHandDetection(std::shared_ptr<cv::Mat> original, std::shared_ptr<cv::Mat> hsv, std::shared_ptr<cv::Mat> gray, std::shared_ptr<cv::Mat> adaptive);
+
+    CVObject locomotive();
+    QVector<CVObject> wagons();
+    std::vector<DetectedMarker> markers();
+
+    cv::Mat staticImage;
+    QTime staticImageAge;
 };

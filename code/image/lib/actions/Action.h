@@ -7,8 +7,9 @@
 
 
 
-class Action
+class Action: public QObject
 {
+    Q_OBJECT
 public:
     Action();
     virtual ~Action() {}

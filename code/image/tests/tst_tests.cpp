@@ -120,7 +120,7 @@ void tests::setTrainPosition(QPoint p, int width)
     CVObject cv = buildCVObject(p,width);
     this->vision->loco = cv;
 
-    railroadLogicService->on_locomotive_changed(cv);
+    railroadLogicService->on_frame_processed(cv, QVector<CVObject>());
 }
 
 void tests::validateSplitterSwitching(SplitterAnnotation *sa, int activatedTrack, bool after)

@@ -39,8 +39,8 @@ MainWindow::MainWindow(TrainController *controller,
     this->display->setProbe(this->vision->probe());
     this->display->createLocomotiveItem("locomotive", DisplayService::ViewType::All);
 
-    //this->controller = controller;
     connect(controller, &TrainController::speedChanged, this, &MainWindow::on_speed_changed);
+    connect(this->vision, &VisionService::debugMatrixReady, this, &MainWindow::on_debug_image);
 
     // Setup status bar
     this->speedLabel = new QLabel();
@@ -171,8 +171,6 @@ void MainWindow::operateView_exit()
 void MainWindow::debugView_entry()
 {
     this->display->setViewType(DisplayService::ViewType::Debug);
-    this->vision->enableDebug(true);
-
     this->ui->debugImages->clear();
 
     for (QString name : this->vision->getDebugNames())
@@ -186,7 +184,7 @@ void MainWindow::debugView_entry()
 
 void MainWindow::debugView_exit()
 {
-    this->vision->enableDebug(false);
+    this->vision->disableDebug();
     this->railroadService->stopTrain();
 }
 
@@ -342,5 +340,11 @@ void MainWindow::on_goWaypoint_button_clicked()
 
 void MainWindow::on_debugImages_currentIndexChanged(const QString &arg1)
 {
-    this->railroadService->setDebugImageName(arg1);
+    this->vision->enableDebug(arg1);
+}
+
+void MainWindow::on_debug_image(QImage img)
+{
+    QGraphicsPixmapItem* pm = (QGraphicsPixmapItem*)this->display->item("debug");
+    pm->setPixmap(QPixmap::fromImage(img).copy());
 }

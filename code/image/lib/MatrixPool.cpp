@@ -1,78 +1,77 @@
 #include "MatrixPool.h"
 
 #include <QDebug>
+#include <exception>
 
-MatrixPool::MatrixPool()
+MatrixPool::MatrixPool(): QObject(nullptr)
 {
-    this->debug = false;
-    this->reset();
+    this->debugIndex = -1;
+    this->debugMatrix = std::make_shared<cv::Mat>();
 }
 
 MatrixPool::~MatrixPool()
 {
 }
 
-void MatrixPool::setDebug(bool val)
+void MatrixPool::addName(int id, QString name)
 {
-    this->debug = val;
-}
-
-void MatrixPool::setContext(char* name)
-{
-    if (!this->debug) return;
-
-    this->currentContext = name;
-}
-
-// The name is not used to retrieve a specific matrix, it is just used to tag the matrix that will be retrieved
-cv::Mat* MatrixPool::getMatrix(char* name)
-{
-    int i = this->index;
-    this->index++;
-    if (this->index >= MAX_MATRICES)
+    if (id >= MAX_MATRICES)
     {
-        qDebug() << "ERROR: Using too many matrices";
+        throw std::exception();
     }
 
-    if (this->debug)
+    if (!this->names[id].isEmpty())
     {
-        this->names[i] = this->currentContext + ":" + name;
+        throw std::exception();
     }
-    this->matrices[i].setTo(0);
-    return &this->matrices[i];
+
+    this->names[id] = name;
 }
 
-void MatrixPool::reset()
+void MatrixPool::enableDebug(int id)
 {
-    this->index =0;
+    // This value will only picked up when startWorking() is called
+    // so it is safe to change it while the thread is working on it.
+    this->debugIndex = id;
 }
 
-bool MatrixPool::getDebug()
+std::shared_ptr<cv::Mat> MatrixPool::getMatrix(int id)
 {
-    return this->debug;
+    if (this->lockedDebugIndex == id)
+    {
+        return this->debugMatrix;
+    }
+
+    return std::make_shared<cv::Mat>();
 }
 
-QVector<QString> MatrixPool::getNames()
+bool MatrixPool::getDebugEnabled()
 {
-    QVector<QString> ret;
+    return (this->debugIndex != -1);
+}
+
+QMap<int, QString> MatrixPool::getNames()
+{
+    QMap<int, QString> ret;
     for (int i = 0; i < MAX_MATRICES; i++)
     {
-        ret.append(this->names[i]);
+        QString str = this->names[i];
+        if (str.isEmpty()) continue;
+        ret[i] = str;       
     }
     return ret;
 }
 
-QImage MatrixPool::dumpMatrix(QString name)
+void MatrixPool::startWorking()
 {
-    for (int i = 0; i < MAX_MATRICES; i++)
-    {
-        if (this->names[i] == name)
-        {
-            cv::Mat img = this->matrices[i];
-            return QImage(img.data,img.cols,img.rows, static_cast<int>(img.step), (img.type()==CV_8UC1)?QImage::Format_Grayscale8:QImage::Format_RGB32);
-        }
-    }
+    // No need to lock here since changing a 64bit int is an atomic operation all the time any way
+    this->lockedDebugIndex = this->debugIndex;
+}
 
-    return QImage();
+void MatrixPool::stopWorking()
+{
+    if (this->debugIndex == -1) return;
+    cv::Mat* img = this->debugMatrix.get();
+    emit debugMatrixReady(QImage(img->data,img->cols,img->rows, static_cast<int>(img->step), (img->type()==CV_8UC1)?QImage::Format_Grayscale8:QImage::Format_RGB32));
 }
 
