@@ -6,14 +6,8 @@
 #include <string>
 #include <climits>
 
-//template<class T>
-//struct GraphEdge;
-
 class PathInfo;
 
-class IGraphEdge
-{
-};
 
 class IGraphNode
 {
@@ -22,6 +16,14 @@ public:
     int cost;
     bool visited;
     std::vector<PathInfo> path;
+};
+
+class IGraphEdge
+{
+public:
+    IGraphNode* node1;
+    IGraphNode* node2;
+    int cost;
 };
 
 template<class T>
@@ -39,9 +41,6 @@ class GraphEdge: public IGraphEdge
 public:
     GraphEdge() {}
 
-    IGraphNode* node1;
-    IGraphNode* node2;
-    int cost;
     T2 data;
 };
 
@@ -157,8 +156,8 @@ public:
     {
         if (!this->nodes.count(source) || !this->nodes.count(destination)) return std::vector<PathInfo>();
 
-        GraphNode<T> * srcNode = this->nodes[source];
-        GraphNode<T> * dstNode = this->nodes[destination];
+        IGraphNode* srcNode = this->nodes[source];
+        IGraphNode* dstNode = this->nodes[destination];
 
         for (auto it : this->nodes)
         {
@@ -167,7 +166,7 @@ public:
         }
         srcNode->cost = 0;
 
-        GraphNode<T>* currentNode = nullptr;
+        IGraphNode* currentNode = nullptr;
 
         while (1)
         {
@@ -179,8 +178,8 @@ public:
             for (auto pi : this->getUnvisitedNeighbours(currentNode))
             {
 
-                auto edge = (GraphEdge<T2>*)pi.edge;
-                GraphNode<T>* n = (GraphNode<T>*)(pi.direction==false?edge->node2:edge->node1);
+                auto edge = pi.edge;
+                IGraphNode* n = pi.direction==false?edge->node2:edge->node1;
 
                 int cost = currentNode->cost + edge->cost;
                 if (n->cost > cost)
@@ -202,9 +201,9 @@ private:
     std::map<std::string,GraphNode<T>*> nodes;
 
 
-    GraphNode<T>* getSmallestUnvisitedNode()
+    IGraphNode* getSmallestUnvisitedNode()
     {
-        GraphNode<T>* ret = nullptr;
+        IGraphNode* ret = nullptr;
         for (auto n : this->nodes)
         {
             if (ret == nullptr || (ret->cost > n.second->cost && !n.second->visited))
@@ -215,7 +214,7 @@ private:
         return ret;
     }
 
-    std::vector<PathInfo> getUnvisitedNeighbours(GraphNode<T>* g)
+    std::vector<PathInfo> getUnvisitedNeighbours(IGraphNode* g)
     {
         std::vector<PathInfo> ret;
         for (auto edge : this->edges)

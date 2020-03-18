@@ -13,22 +13,20 @@
 #include "PerformanceMonitor.h"
 #include <QMap>
 
-//#define MATRIX_LOCO_MASK 0
-//#define MATRIX_WAGON_MASK 1
-//#define MATRIX_CROSSINGS_MASK 2
-//#define MATRIX_ALL_GRAY 3
-
 #define MATRIX_ORIGINAL             0
 #define MATRIX_GRAY_ALL             1
 #define MATRIX_HSV_ALL              2
 #define MATRIX_ADAPTIVE             3
 
-#define MATRIX_DIFFERENCE           0
+#define MATRIX_DIFFERENCE_MASK      0
+#define MATRIX_DIFFERENCE           1
+#define MATRIX_HANDCONTOUR          2
 
 #define MATRIX_TRACK_MASKED         0
 #define MATRIX_LOCO_MASK            1
 #define MATRIX_WAGON_MASK           2
 #define MATRIX_MARKERS_CONTOURS     3
+
 
 #define SKIP_FRAMES 1
 #define DETECTION_MISS_THRESHOLD 4
@@ -49,13 +47,11 @@ VisionService::VisionService(int w, int h)
 
     this->matrixPool = new MatrixPool();
     this->trackMatrixPool = new MatrixPool();
-    this->handMatrixPool = new MatrixPool();
 
     this->videoProbe = new QVideoProbe();
     connect(this->videoProbe, SIGNAL(videoFrameProbed(QVideoFrame)), this, SLOT(processFrame(QVideoFrame)));
     connect(this->matrixPool, SIGNAL(debugMatrixReady(QImage)), this, SIGNAL(debugMatrixReady(QImage)));
     connect(this->trackMatrixPool, SIGNAL(debugMatrixReady(QImage)), this, SIGNAL(debugMatrixReady(QImage)));
-    connect(this->handMatrixPool, SIGNAL(debugMatrixReady(QImage)), this, SIGNAL(debugMatrixReady(QImage)));
     this->skipFrames = SKIP_FRAMES;
 
     this->locomotiveSpecs.minColor = HSV(340,0,0);    // pink
@@ -89,22 +85,18 @@ VisionService::VisionService(int w, int h)
     this->trackMatrixPool->addName(MATRIX_LOCO_MASK, "loco_mask");
     this->trackMatrixPool->addName(MATRIX_WAGON_MASK,"wagon_mask");
     this->trackMatrixPool->addName(MATRIX_MARKERS_CONTOURS,"markers_contours");
-    this->handMatrixPool->addName(MATRIX_DIFFERENCE, "difference");
 
-    this->staticImage = cv::Mat(h,w,CV_8UC4);
 
-    this->handWorker = new FrameProcessingWorker([this](auto wi){ this->workOnHandDetection(wi.original, wi.hsv, wi.gray, wi.adaptive); });
+
     this->trackWorker = new FrameProcessingWorker([this](auto wi){ this->workOnTrackDetection(wi.original, wi.hsv, wi.gray, wi.adaptive); });
 }
 
 
 VisionService::~VisionService()
 {
-    this->handWorker->join();
     this->trackWorker->join();
     delete this->matrixPool;
     delete this->videoProbe;
-    delete this->handWorker;
     delete this->trackWorker;
 }
 
@@ -427,135 +419,6 @@ cv::Mat VisionService::generateCrossingTemplate(int w, int h)
 }
 
 
-bool VisionService::detectHand(std::shared_ptr<cv::Mat> mat)
-{
-
-/*    
-//TODO: Do this in another thread, on another core
-
-    Contours contours;
-    QVector<QPoint> fingers;
-    std::vector<cv::Vec4i> defects;
-    std::vector<int> hull;
-    std::vector<int> reducedHull;
-    std::vector<std::pair<int, int>> candidates;
-    Contour contour;
-    cv::Point center;
-
-    cv::Mat* handMat = this->matrixPool.getMatrix("hand_detect");
-    cv::Mat* handContoursMat = this->matrixPool.getMatrix("hand_contours");
-    handContoursMat->create(mat->size(), CV_8UC4);
-    cv::inRange(*mat, HSV(10,30,40), HSV(40,100,80), *handMat);
-    //cv::inRange(*hsvImage, HSV(20,30,0), HSV(50,100,80), *handMat);  // Skin color
-    std::vector<cv::Vec4i> hierarchy;
-    cv::findContours(*handMat, contours, hierarchy, cv::RETR_CCOMP, cv::CHAIN_APPROX_SIMPLE);
-
-    for (int contourIndex = 0; contourIndex < contours.size(); contourIndex++)
-    {
-        contour = contours[contourIndex];
-        cv::RotatedRect rr = cv::minAreaRect(contour);
-        double area = cv::contourArea(contour);
-        if (rr.size.area() <5000) continue; // TODO: MAGIC NUMBER
-
-
-        center.x = rr.center.x;
-        center.y = rr.center.y;
-        cv::convexHull(contour, hull, true, true);
-        if (hull.size() < 3) continue;
-        break;
-    }
-
-    if (hull.size() <3) return false;
-
-    // Find all points that are close to each other in the hull
-    std::vector<int> labels;
-    int labelCount = cv::partition(hull, labels, [contour](int ia, int ib) {
-        cv::Point a = contour[ia];
-        cv::Point b = contour[ib];
-        return (((a.x-b.x)*(a.x-b.x))+((a.y-b.y)*(a.y-b.y))) < 30; //TODO: MAGIC NUMBER
-    });
-
-    // Cluster those points together by keeping the first one we find.
-    int currentLabel = 0;
-    while (labelCount)
-    {
-        for (int i = 0; i < labels.size(); i++)
-        {
-            if (labels[i] == currentLabel)
-            {
-                reducedHull.push_back(hull.at(i));
-                break;
-            }
-        }
-        labelCount--;
-        currentLabel++;
-    }
-    cv::convexityDefects(contour, reducedHull, defects);
-
-    if (!defects.size()) return false;
-
-    if (this->matrixPool.getDebug())
-    {
-        Contours cc;
-        cc.push_back(contour);
-        cv::drawContours(*handContoursMat, cc, 0, cv::Scalar(255,255,255));
-    }
-
-    cv::Point lastDefect;
-    lastDefect.x = -1;
-    for (auto d : defects)
-    {
-        cv::Point pstart = contour[d[0]];
-        cv::Point pend = contour[d[1]];
-        cv::Point pfar = contour[d[2]];
-        int depth = d[3];
-        if (depth < 6000) continue;
-
-        // the depth between the concave point and the hull should be large enough
-        if (this->matrixPool.getDebug()) cv::circle(*handContoursMat, pfar, 5, cv::Scalar(255,0,0));
-
-        auto color = cv::Scalar(0,255,255);
-
-        if (lastDefect.x == -1) candidates.push_back({d[0], d[2]});
-        candidates.push_back({d[1], d[2]});
-        lastDefect = pfar;
-    }
-
-    for (int i = 0; i < candidates.size(); i++)
-    {
-        cv::Point cvp = contour[candidates[i].first];
-        QPoint p = QPoint(cvp.x, cvp.y);
-
-        int i1 = candidates[i].first+20;
-        int i2 = candidates[i].first-20;
-        if (i1> contour.size()) i1 -=contour.size();
-        if (i2 < 0) i2 += contour.size();
-
-        cv::Point p1 = contour[i1];
-        cv::Point p2 = contour[i2];
-
-        double fingerWidth = CVNORM(p1.x, p1.y, p2.x, p2.y);
-        if (fingerWidth < 50)
-        {
-            if (this->matrixPool.getDebug()) cv::circle(*handContoursMat, cvp, 5, cv::Scalar(0,0,255));
-            fingers.append(p);
-        }
-
-        cv::Point cvpf = contour[candidates[i].second];
-        if (this->matrixPool.getDebug())
-        {
-            cv::line(*handContoursMat, center, cvpf, cv::Scalar(0,255,0), 1);
-            cv::line(*handContoursMat, cvpf, cvp, cv::Scalar(0,255,255), 1);
-            cv::line(*handContoursMat, p1, p2, cv::Scalar(0,0, 255), 1);
-        }
-    }
-
-    if (fingers.size()) emit fingersDetected(fingers);
-
-*/
-    return true;
-}
-
 
 void VisionService::processFrame(QVideoFrame frame)
 {
@@ -586,7 +449,6 @@ void VisionService::processFrame(QVideoFrame frame)
     wi.gray = grayImage;
     wi.adaptive = adaptive;
     wi.original = original;
-    this->handWorker->queueWork(wi);
     this->trackWorker->queueWork(wi);
 
     this->matrixPool->stopWorking();
@@ -631,7 +493,6 @@ void VisionService::enableDebug(QString name)
 {
     this->matrixPool->enableDebug(-1);
     this->trackMatrixPool->enableDebug(-1);
-    this->handMatrixPool->enableDebug(-1);
 
     auto names = this->matrixPool->getNames();
     for (int key : names.keys())
@@ -651,15 +512,6 @@ void VisionService::enableDebug(QString name)
             return;
         }
     }
-    names = this->handMatrixPool->getNames();
-    for (int key : names.keys())
-    {
-        if (names[key] == name)
-        {
-            this->handMatrixPool->enableDebug(key);
-            return;
-        }
-    }
 
 }
 
@@ -671,10 +523,6 @@ QVector<QString> VisionService::getDebugNames()
         ret.append(name);
     }
     for (QString name : this->trackMatrixPool->getNames())
-    {
-        ret.append(name);
-    }
-    for (QString name : this->handMatrixPool->getNames())
     {
         ret.append(name);
     }
@@ -718,32 +566,3 @@ void VisionService::workOnTrackDetection(std::shared_ptr<cv::Mat> original, std:
     PerformanceMonitor::toc("VisionService::workOnTrackDetection");
 }
 
-void VisionService::workOnHandDetection(std::shared_ptr<cv::Mat> original, std::shared_ptr<cv::Mat> hsv, std::shared_ptr<cv::Mat> gray, std::shared_ptr<cv::Mat> adaptive)
-{
-    cv::Mat tmp;
-    cv::Mat tmp2;
-
-    PerformanceMonitor::tic("VisionService::workOnHandDetection");
-    this->handMatrixPool->startWorking();
-
-
-    std::shared_ptr<cv::Mat> diff = this->handMatrixPool->getMatrix(MATRIX_DIFFERENCE);
-    //diff->create(VIDEO_HEIGHT, VIDEO_WIDTH, CV_8UC1);
-    cv::absdiff(this->staticImage, *original, tmp2);
-    cv::cvtColor(tmp2, tmp, cv::COLOR_BGR2GRAY);
-    if (cv::mean(tmp)[0] > 60)
-    {
-        // If the background changed drastically, update it
-        original->copyTo(this->staticImage);
-    }
-
-//    cv::adaptiveThreshold(tmp, *diff, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY, 5,3);
-    cv::threshold(tmp, *diff, 40, 255, 0);
-
-
-
-
-    this->handMatrixPool->stopWorking();
-    //this->detectHand(hsv);
-    PerformanceMonitor::toc("VisionService::workOnHandDetection");
-}

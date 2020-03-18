@@ -18,7 +18,7 @@ else:unix: LIBS += -L$$OUT_PWD/../lib/ -llib
 INCLUDEPATH += $$PWD/../lib
 DEPENDPATH += $$PWD/../lib
 
-LIBS += -lopencv_core -lopencv_imgproc -lopencv_imgcodecs -lopencv_highgui -lopencv_text
+LIBS += -lopencv_core -lopencv_imgproc -lopencv_imgcodecs -lopencv_highgui -lopencv_text -lopencv_video
 PRE_TARGETDEPS += $$OUT_PWD/../lib/liblib.so
 
 HEADERS += \

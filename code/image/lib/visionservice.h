@@ -9,6 +9,7 @@
 #include "IVisionService.h"
 #include "MatrixPool.h"
 #include "FrameProcessingWorker.h"
+#include <opencv2/video.hpp>
 
 typedef std::vector<cv::Point> Contour;
 typedef std::vector<Contour> Contours;
@@ -82,7 +83,6 @@ private:
     QLineF getLine(cv::RotatedRect r);
     cv::Mat generateCrossingTemplate(int w, int h);
 
-    bool detectHand(std::shared_ptr<cv::Mat> mat);
     bool detectWagons(std::shared_ptr<cv::Mat> mat);
     bool detectLocomotive(std::shared_ptr<cv::Mat> mat, DetectionSpecs& specs);
     void detectMarkers(std::shared_ptr<cv::Mat> mat, std::shared_ptr<cv::Mat> adaptive);
@@ -92,18 +92,13 @@ private:
 
     MatrixPool* matrixPool;
     MatrixPool* trackMatrixPool;
-    MatrixPool* handMatrixPool;
 
     FrameProcessingWorker* trackWorker;
-    FrameProcessingWorker* handWorker;
 
     void workOnTrackDetection(std::shared_ptr<cv::Mat> original, std::shared_ptr<cv::Mat> hsv, std::shared_ptr<cv::Mat> gray, std::shared_ptr<cv::Mat> adaptive);
-    void workOnHandDetection(std::shared_ptr<cv::Mat> original, std::shared_ptr<cv::Mat> hsv, std::shared_ptr<cv::Mat> gray, std::shared_ptr<cv::Mat> adaptive);
 
     CVObject locomotive();
     QVector<CVObject> wagons();
     std::vector<DetectedMarker> markers();
 
-    cv::Mat staticImage;
-    QTime staticImageAge;
 };

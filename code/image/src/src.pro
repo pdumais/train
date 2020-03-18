@@ -25,7 +25,7 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 QMAKE_LFLAGS += -Wl,-rpath,"'\$$ORIGIN'"
 
 LIBS += -L$$OUT_PWD/../lib/ -llib
-LIBS += -lopencv_core -lopencv_imgproc -lopencv_imgcodecs -lopencv_highgui -lopencv_text
+LIBS += -lopencv_core -lopencv_imgproc -lopencv_imgcodecs -lopencv_highgui -lopencv_text -lopencv_video
 PRE_TARGETDEPS += $$OUT_PWD/../lib/liblib.so
 
 INCLUDEPATH += $$PWD/../lib
