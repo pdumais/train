@@ -36,7 +36,6 @@ SOURCES += \
     actions/MoveToAction.cpp \
     Train.cpp \
     Railroad.cpp \
-    CollisionMatrix.cpp \
     PerformanceMonitor.cpp \
     actions/ChangeTrackAction.cpp \
     actions/MoveToSplitterAction.cpp \
@@ -75,7 +74,6 @@ HEADERS += \
     Train.h \
     Railroad.h \
     Graph.h \
-    CollisionMatrix.h \
     PerformanceMonitor.h \
     actions/ChangeTrackAction.h \
     actions/MoveToSplitterAction.h \

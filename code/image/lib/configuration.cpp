@@ -16,42 +16,19 @@
 
 Configuration::Configuration()
 {
-    this->annotationCollisionMatrix = nullptr;
 }
 
 Configuration::Configuration(QString trackFile, QString configFile)
 {
-    this->annotationCollisionMatrix = nullptr;
     this->load(trackFile, configFile);
 }
 Configuration::~Configuration()
 {
-    if (this->annotationCollisionMatrix) delete this->annotationCollisionMatrix;
-}
-
-void Configuration::buildAnnotationCollisionMatrixMask()
-{
-    RawCollisionMatrix<bool> mask;
-
-    if (this->annotationCollisionMatrix) delete this->annotationCollisionMatrix;
-
-    for (Track *t : this->tracks)
-    {
-        for (QPoint p : t->getPolygon())
-        {
-            QPoint lowResPoint = CollisionMatrix32x32<bool>::getCorrespondingSlot(p);
-            mask[lowResPoint.x()+(lowResPoint.y()*32)] = true;
-        }
-    }
-
-    this->annotationCollisionMatrix = new CollisionMatrix32x32<Annotation*>(mask);
-    buildAnnotationCollisionMatrix();
 }
 
 void Configuration::addTrack(Track* track)
 {
     this->tracks.append(track);
-    this->buildAnnotationCollisionMatrixMask();
 }
 
 void Configuration::removeTrack(Track* track)
@@ -62,7 +39,6 @@ void Configuration::removeTrack(Track* track)
     this->tracks.remove(index);
     delete track;
 
-    this->buildAnnotationCollisionMatrixMask();
 }
 
 QVector<Track*> Configuration::getTracks()
@@ -74,12 +50,6 @@ void Configuration::addAnnotation(Annotation* a)
 {
     this->annotations.append(a);
     this->assignRelayToAnnotations();
-    this->buildAnnotationCollisionMatrix();
-
-    // TO DEBUG ONLY
-//    QImage img(VIDEO_WIDTH,VIDEO_HEIGHT,QImage::Format_RGB32);
-//    this->annotationCollisionMatrix->drawToDebugImage(img,Qt::red);
-  //  DisplayService::debugPixmap->setPixmap(QPixmap::fromImage(img).copy());
 
 }
 
@@ -92,8 +62,6 @@ void Configuration::removeAnnotation(Annotation* a)
     this->assignRelayToAnnotations();
     delete a;
 
-    // TODO: do we need to do this?? They should not dissapear
-    //this->buildAnnotationCollisionMatrix();
 }
 
 void Configuration::assignRelayToAnnotations()
@@ -133,15 +101,6 @@ QVector<Annotation*> Configuration::getAnnotations()
     return this->annotations;
 }
 
-void Configuration::buildAnnotationCollisionMatrix()
-{
-    if (!this->annotationCollisionMatrix) return;
-    for (Annotation* a : this->annotations)
-    {
-        this->annotationCollisionMatrix->addPoint(a->getPosition(), a);
-    }
-}
-
 
 void Configuration::load(QString trackFile, QString configFile)
 {
@@ -159,7 +118,6 @@ void Configuration::load(QString trackFile, QString configFile)
     in >> this->tracks >> this->soundLevel >> this->lightLevel;
 
     this->assignRelayToAnnotations();
-    buildAnnotationCollisionMatrixMask();
 }
 
 QString Configuration::getControllerPort()

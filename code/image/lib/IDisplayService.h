@@ -10,6 +10,12 @@
 #include <QVideoProbe>
 #include <memory>
 
+enum class DisplayPosition
+{
+    TopLeft,
+    Centered
+};
+
 class IDisplayService: public QObject
 {
     Q_OBJECT
@@ -42,22 +48,20 @@ public:
     virtual bool itemExists(QString name) =0;
     virtual void setTrackPen(QString name, QPen p) = 0;
     virtual void setTrackPath(QString name, QPainterPath p)=0;
-    virtual QGraphicsItem* item(QString name)=0;
-    virtual QGraphicsPolygonItem* polygonItem(QString name)=0;
     virtual void updateWayPoint()=0;
     virtual void setWaypoint(QPoint w, QPoint trackPoint)=0;
     virtual void setProbe(QVideoProbe *probe)=0;
-    virtual QGraphicsPolygonItem* createLocomotiveItem(QString name, ViewType viewType)=0;
-    virtual QGraphicsPolygonItem* createWagonItem(QString name, ViewType viewType)=0;
+    virtual void createLocomotiveItem(QString name, ViewType viewType)=0;
+    virtual void createWagonItem(QString name, ViewType viewType)=0;
     virtual void createTrackItem(QString name, ViewType viewType)=0;
-    virtual QGraphicsPixmapItem* createPixmapItem(QString name, ViewType viewType, QString fileName, bool selectable=false)=0;
-    virtual QGraphicsEllipseItem* createAnnotationItem(QString name, ViewType viewType, QString fileName, int radius, bool selectable=false)=0;
+    virtual void createPixmapItem(QString name, ViewType viewType, QString fileName, bool selectable=false)=0;
+    virtual void createAnnotationItem(QString name, ViewType viewType, QString fileName, int radius, bool selectable=false)=0;
 
-signals:
-    void trainPositionChanged(QPoint);
-    void dropDetected(QPoint);
-    void annotationDropped(QString name, QPoint);
-    void annotationSelected(QString name);
+    virtual void setPosition(QString name, QPoint pos, DisplayPosition align=DisplayPosition::TopLeft) = 0;
+    virtual void setZValue(QString name, int val) = 0;
+    virtual void setPixmap(QString name, QPixmap) = 0;
+    virtual void setPolygon(QString name, QPolygon) = 0;
+    virtual void setBrush(QString name, QBrush) = 0;
 
 };
 

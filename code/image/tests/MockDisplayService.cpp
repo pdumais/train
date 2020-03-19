@@ -61,30 +61,39 @@ void MockDisplayService::setProbe(QVideoProbe *probe)
 {
 }
 
-QGraphicsPolygonItem *MockDisplayService::createLocomotiveItem(QString name, IDisplayService::ViewType viewType)
+void MockDisplayService::createLocomotiveItem(QString name, IDisplayService::ViewType viewType)
 {
-    return 0;
 }
 
-QGraphicsPolygonItem *MockDisplayService::createWagonItem(QString name, IDisplayService::ViewType viewType)
+void MockDisplayService::createWagonItem(QString name, IDisplayService::ViewType viewType)
 {
-    return 0;
 }
 
-QGraphicsPixmapItem *MockDisplayService::createPixmapItem(QString name, IDisplayService::ViewType viewType, QString fileName, bool selectable)
+void MockDisplayService::createPixmapItem(QString name, IDisplayService::ViewType viewType, QString fileName, bool selectable)
 {
-    return 0;
 }
 
-QGraphicsEllipseItem *MockDisplayService::createAnnotationItem(QString name, IDisplayService::ViewType viewType, QString fileName, int radius, bool selectable)
+void MockDisplayService::createAnnotationItem(QString name, IDisplayService::ViewType viewType, QString fileName, int radius, bool selectable)
 {
-    return 0;
 }
 
 
 bool MockDisplayService::itemExists(QString name)
 {
     return false;
+}
+
+
+void MockDisplayService::setPosition(QString name, QPoint pos, DisplayPosition align)
+{
+}
+
+void MockDisplayService::setZValue(QString name, int val)
+{
+}
+
+void MockDisplayService::createTrackItem(QString name, ViewType viewType)
+{
 }
 
 void MockDisplayService::setTrackPen(QString name, QPen p)
@@ -95,7 +104,22 @@ void MockDisplayService::setTrackPath(QString name, QPainterPath p)
 {
 }
 
-void MockDisplayService::createTrackItem(QString name, ViewType viewType)
+void MockDisplayService::setPixmap(QString name, QPixmap p)
 {
 }
 
+void MockDisplayService::setPolygon(QString name, QPolygon p)
+{
+    if (!this->wagons.contains(name)) return;
+    auto g = dynamic_cast<QGraphicsPolygonItem*>(this->wagons[name]);
+    if (!g) return;
+    g->setPolygon(p);
+}
+
+void MockDisplayService::setBrush(QString name, QBrush b)
+{
+    if (!this->wagons.contains(name)) return;
+    auto g = dynamic_cast<QAbstractGraphicsShapeItem*>(this->wagons[name]);
+    if (!g) return;
+    g->setBrush(b);
+}

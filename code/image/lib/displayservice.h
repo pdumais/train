@@ -25,32 +25,26 @@ public:
     void removeItem(QString name) override;
     void setTrackPen(QString name, QPen p) override;
     void setTrackPath(QString name, QPainterPath p) override;
-    QGraphicsItem* item(QString name) override;
-    QGraphicsPolygonItem* polygonItem(QString name) override;
     void updateWayPoint() override;
     void setWaypoint(QPoint w, QPoint trackPoint) override;
     void setProbe(QVideoProbe *probe) override;
     bool itemExists(QString name) override;
 
 
-    QGraphicsPolygonItem* createLocomotiveItem(QString name, ViewType viewType) override;
-    QGraphicsPolygonItem* createWagonItem(QString name, ViewType viewType) override;
+    void createLocomotiveItem(QString name, ViewType viewType) override;
+    void createWagonItem(QString name, ViewType viewType) override;
     void createTrackItem(QString name, ViewType viewType) override;
-    QGraphicsPixmapItem* createPixmapItem(QString name, ViewType viewType, QString fileName="", bool selectable=false) override;
-    QGraphicsEllipseItem* createAnnotationItem(QString name, ViewType viewType, QString fileName, int radius, bool selectable=false) override;
+    void createPixmapItem(QString name, ViewType viewType, QString fileName="", bool selectable=false) override;
+    void createAnnotationItem(QString name, ViewType viewType, QString fileName, int radius, bool selectable=false) override;
+    void setPosition(QString name, QPoint pos, DisplayPosition align=DisplayPosition::TopLeft) override;
+    void setZValue(QString name, int val) override;
+    void setPixmap(QString name, QPixmap) override;
+    void setPolygon(QString name, QPolygon) override;
+    void setBrush(QString name, QBrush) override;
 
 public slots:
     void on_operation_item_selected();
     void on_learning_track_updated(QPainterPath p);
-
-
-signals:
-    void trainPositionChanged(QPoint);
-    void dropDetected(QPoint);
-    void annotationDropped(QString name, QPoint);
-    void annotationSelected(QString name);
-    void waypointSet(QPoint);
-
 
 private:
     struct ItemInfo
@@ -75,6 +69,8 @@ private:
     QGraphicsVideoItem* createVideoItem();
 
     QGraphicsItem* addGraphicsItem(QString name, QGraphicsItem* item, ViewType viewType, bool selectable=false);
+    QGraphicsPolygonItem* polygonItem(QString name);
+    QGraphicsItem* item(QString name);
 };
 
 

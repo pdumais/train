@@ -125,40 +125,23 @@ void RailroadLogicService::on_frame_processed(CVObject obj, QVector<CVObject> wa
     ////////////////////////////////////
     // Update display
     ////////////////////////////////////
-    QGraphicsPolygonItem* loco = this->display->polygonItem("locomotive");
-    if (loco)
-    {
-        //QVariant v;
-        //v.setValue(obj);
-        //loco->setData(1,v);
-        loco->setPolygon(train->getLocomotive());
-    }
+    this->display->setPolygon("locomotive",train->getLocomotive());
 
     int i = 0;
     for (QPolygon poly : train->getLinkedWagons())
     {
         QString name;
         QTextStream(&name) << "wagon" << i;
-        QGraphicsPolygonItem* w = this->display->polygonItem(name);
-        if (!w) continue;
-        //v.setValue(wagons[i]);
-        //w->setData(1,v);
-        w->setPolygon(poly);
-        w->setBrush(QBrush(QColor(255,0,255,64)));
-
+        this->display->setPolygon(name, poly);
+        this->display->setBrush(name, QBrush(QColor(255,0,255,64)));
         i++;
     }
     for (QPolygon poly : train->getUnlinkedWagons())
     {
         QString name;
         QTextStream(&name) << "wagon" << i;
-        QGraphicsPolygonItem* w = this->display->polygonItem(name);
-        if (!w) continue;
-        //v.setValue(wagons[i]);
-        //w->setData(1,v);
-        w->setPolygon(poly);
-        w->setBrush(QBrush(QColor(255,255,0,64)));
-
+        this->display->setPolygon(name, poly);
+        this->display->setBrush(name, QBrush(QColor(255,255,0,64)));
         i++;
     }
 
@@ -465,18 +448,13 @@ void RailroadLogicService::updateAnnotations()
     {
         int radius = SPLITTER_RADIUS;
         if (dynamic_cast<CrossRoadAnnotation*>(a)) radius = CROSSROAD_RADIUS;
-        QGraphicsItem* g = this->display->item(a->getName());
-        if (!g)
+        if (!this->display->itemExists(a->getName()))
         {
-            g = this->display->createAnnotationItem(a->getName(), IDisplayService::ViewType::All, a->pixmapName(), radius, true);
+            this->display->createAnnotationItem(a->getName(), IDisplayService::ViewType::All, a->pixmapName(), radius, true);
         }
 
-        QGraphicsEllipseItem* e = dynamic_cast<QGraphicsEllipseItem*>(g);
-        if (!e) continue;
-
-        e->setPos(a->getPosition()-e->rect().center().toPoint());
-        e->setZValue(50); //TODO: use enum for that value
-        e->setData(1,a->getName());
+        this->display->setPosition(a->getName(), a->getPosition(), DisplayPosition::Centered);
+        this->display->setZValue(a->getName(), 50); //TODO: use enum for that value
     }
 }
 

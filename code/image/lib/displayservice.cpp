@@ -41,7 +41,8 @@ void DisplayService::init(QGraphicsView* view)
     camera->viewfinderSettings().setMaximumFrameRate(20);
     this->camera->start();
 
-    this->createPixmapItem("debug", ViewType::Debug)->setZValue(1000);
+    this->createPixmapItem("debug", ViewType::Debug);
+    this->setZValue("debug", 1000);
     this->createTrackItem("LearningTrack", ViewType::Learning);
     this->createPixmapItem("_waypoint", ViewType::Operation, ":/waypoint.png");
     this->addGraphicsItem("_waypointline", new QGraphicsLineItem(), ViewType::Operation);
@@ -63,6 +64,27 @@ void DisplayService::init(QGraphicsView* view)
 
     this->updateWayPoint();
 }
+
+void DisplayService::setPosition(QString name, QPoint pos, DisplayPosition align)
+{
+    if (!this->items.contains(name)) return;
+    auto item = this->items[name].item;
+
+    if (align == DisplayPosition::Centered)
+    {
+        pos -= item->boundingRect().center().toPoint();
+    }
+
+    item->setPos(pos);
+}
+
+void DisplayService::setZValue(QString name, int val)
+{
+    if (!this->items.contains(name)) return;
+    auto item = this->items[name].item;
+    item->setZValue(val);
+}
+
 
 void DisplayService::on_operation_item_selected()
 {
@@ -210,17 +232,16 @@ void DisplayService::setProbe(QVideoProbe *probe)
 }
 
 
-QGraphicsPolygonItem* DisplayService::createLocomotiveItem(QString name, ViewType viewType)
+void DisplayService::createLocomotiveItem(QString name, ViewType viewType)
 {
     QGraphicsPolygonItem* r = new QGraphicsPolygonItem();
     r->setPos(0,0);
     r->setPen(Qt::NoPen);
     r->setBrush(QBrush(QColor(255,0,0,64)));
     this->addGraphicsItem(name,r,viewType);
-    return r;
 }
 
-QGraphicsPolygonItem* DisplayService::createWagonItem(QString name, ViewType viewType)
+void DisplayService::createWagonItem(QString name, ViewType viewType)
 {
     QGraphicsPolygonItem* r = new QGraphicsPolygonItem();
     r->setPos(0,0);
@@ -228,7 +249,6 @@ QGraphicsPolygonItem* DisplayService::createWagonItem(QString name, ViewType vie
     r->setBrush(QBrush(QColor(255,0,255,64)));
 
     this->addGraphicsItem(name,r,viewType);
-    return r;
 }
 
 void DisplayService::createTrackItem(QString name, ViewType viewType)
@@ -239,7 +259,7 @@ void DisplayService::createTrackItem(QString name, ViewType viewType)
 
 }
 
-QGraphicsPixmapItem* DisplayService::createPixmapItem(QString name, ViewType viewType, QString fileName, bool selectable)
+void DisplayService::createPixmapItem(QString name, ViewType viewType, QString fileName, bool selectable)
 {
     QGraphicsPixmapItem* item;
     if (!fileName.isEmpty())
@@ -253,10 +273,10 @@ QGraphicsPixmapItem* DisplayService::createPixmapItem(QString name, ViewType vie
     }
     this->addGraphicsItem(name,item,viewType, selectable);
 
-    return item;
+    return;
 }
 
-QGraphicsEllipseItem* DisplayService::createAnnotationItem(QString name, ViewType viewType, QString fileName, int radius, bool selectable)
+void DisplayService::createAnnotationItem(QString name, ViewType viewType, QString fileName, int radius, bool selectable)
 {
     QImage img(fileName);
     QGraphicsEllipseItem* e = new QGraphicsEllipseItem(QRect(0,0,radius*2,radius*2));
@@ -265,7 +285,6 @@ QGraphicsEllipseItem* DisplayService::createAnnotationItem(QString name, ViewTyp
     QGraphicsPixmapItem* px = new QGraphicsPixmapItem(QPixmap::fromImage(img).scaled(QSize(64,64)),e);
     px->setPos(radius-32,radius-32);
     this->addGraphicsItem(name,e,viewType, selectable);
-    return e;
 }
 
 QGraphicsItem* DisplayService::addGraphicsItem(QString name, QGraphicsItem* item, ViewType viewType, bool selectable)
@@ -274,6 +293,7 @@ QGraphicsItem* DisplayService::addGraphicsItem(QString name, QGraphicsItem* item
     itemInfo.item = item;
     itemInfo.viewType = viewType;
     itemInfo.name = name;
+    item->setData(1,name);
     this->items[name] = itemInfo;
     //TODO: only add in current scene if it is marked for that scene
     if (this->view->scene()) this->view->scene()->addItem(item);
@@ -294,6 +314,30 @@ void DisplayService::setTrackPath(QString name, QPainterPath p)
     if (!this->items.contains(name)) return;
     auto g = dynamic_cast<QGraphicsPathItem*>(this->items[name].item);
     g->setPath(p);
+}
+
+void DisplayService::setPixmap(QString name, QPixmap p)
+{
+    if (!this->items.contains(name)) return;
+    auto g = dynamic_cast<QGraphicsPixmapItem*>(this->items[name].item);
+    if (!g) return;
+    g->setPixmap(p);
+}
+
+void DisplayService::setPolygon(QString name, QPolygon p)
+{
+    if (!this->items.contains(name)) return;
+    auto g = dynamic_cast<QGraphicsPolygonItem*>(this->items[name].item);
+    if (!g) return;
+    g->setPolygon(p);
+}
+
+void DisplayService::setBrush(QString name, QBrush b)
+{
+    if (!this->items.contains(name)) return;
+    auto g = dynamic_cast<QAbstractGraphicsShapeItem*>(this->items[name].item);
+    if (!g) return;
+    g->setBrush(b);
 }
 
 bool DisplayService::itemExists(QString name)

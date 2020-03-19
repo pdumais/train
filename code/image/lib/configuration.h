@@ -6,20 +6,16 @@
 #include "annotation.h"
 #include "crossroadannotation.h"
 #include "splitterannotation.h"
-#include "CollisionMatrix.h"
 
 class Configuration
 {
 private:
     QVector<Track*> tracks;
     QVector<Annotation*> annotations;
-    CollisionMatrix32x32<Annotation*> *annotationCollisionMatrix;
     QString controllerPort;
     void assignRelayToAnnotations();
     int lightLevel;
     int soundLevel;
-    void buildAnnotationCollisionMatrixMask();
-    void buildAnnotationCollisionMatrix();
 
 public:
     Configuration();

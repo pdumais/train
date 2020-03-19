@@ -345,8 +345,7 @@ void MainWindow::on_debugImages_currentIndexChanged(const QString &arg1)
 
 void MainWindow::on_debug_image(QImage img)
 {
-    QGraphicsPixmapItem* pm = (QGraphicsPixmapItem*)this->display->item("debug");
-    pm->setPixmap(QPixmap::fromImage(img).copy());
+    this->display->setPixmap("debug", QPixmap::fromImage(img).copy());
 }
 
 
