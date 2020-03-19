@@ -43,7 +43,8 @@ SOURCES += \
     actions/InitSplittersAction.cpp \
     MatrixPool.cpp \
     FrameProcessingWorker.cpp \
-    actions/ClearWaypointAction.cpp
+    actions/ClearWaypointAction.cpp \
+    Graph.cpp
 
 
 HEADERS += \

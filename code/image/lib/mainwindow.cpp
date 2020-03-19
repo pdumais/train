@@ -153,7 +153,7 @@ void MainWindow::learningActive_entry()
     viewLabel->setText("Learn view (active for track '"+t->getName()+"')");
 
     //TODO: this logic should be done in railroadservice
-    this->trackLearningService->start(t->getName(), this->display->track("LearningTrack"));
+    this->trackLearningService->start(t->getName());
 
 }
 
@@ -348,3 +348,6 @@ void MainWindow::on_debug_image(QImage img)
     QGraphicsPixmapItem* pm = (QGraphicsPixmapItem*)this->display->item("debug");
     pm->setPixmap(QPixmap::fromImage(img).copy());
 }
+
+
+

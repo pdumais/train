@@ -25,21 +25,21 @@ struct PinInfo pins[] = {
     {&PORTE, &DDRE, 6}, 
     {&PORTB, &DDRB, 4}, 
     {&PORTD, &DDRD, 6}, 
-    {&PORTF, &DDRF, 7},
+    {&PORTC, &DDRC, 7},
     {&PORTF, &DDRF, 6},
-    {&PORTF, &DDRF, 5},
+    {&PORTF, &DDRF, 7},
     {&PORTF, &DDRF, 4},
-    {&PORTF, &DDRF, 1},
+    {&PORTF, &DDRF, 5},
     {&PORTF, &DDRF, 0},
-    #define FIRST_PWM 11
+    {&PORTF, &DDRF, 1},
+    #define FIRST_PWM 12
     // PWMs
-    {&PORTB, &DDRB, 7,},  // l
-    {&PORTD, &DDRD, 0,},  // m
-    {&PORTB, &DDRB, 5,},  // n
-    {&PORTB, &DDRB, 6,},  // o
-    {&PORTC, &DDRC, 6,},  // p
-    {&PORTD, &DDRD, 7,},  // q
-    {&PORTC, &DDRC, 7,}   // r
+    {&PORTB, &DDRB, 7,},  // m
+    {&PORTD, &DDRD, 0,},  // n
+    {&PORTB, &DDRB, 5,},  // o
+    {&PORTB, &DDRB, 6,},  // p
+    {&PORTC, &DDRC, 6,},  // q
+    {&PORTD, &DDRD, 7,},  // r
     #define LAST_PWM 17
 }; 
 

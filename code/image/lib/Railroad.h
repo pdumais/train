@@ -14,14 +14,14 @@ public:
     void setTracks(QVector<Track*> val);
     QVector<SplitterAnnotation*> getTurnouts();
 
-    Graph<SplitterAnnotation*, TrackSection>* getGraph();
+    Graph* getGraph();
 
     std::vector<PathInfo> findShortestPath(QPoint source, QPoint dest);
 
 private:
     QVector<SplitterAnnotation*> turnouts;
     QVector<Track*> tracks;
-    Graph<SplitterAnnotation*, TrackSection> *tracksGraph;
+    Graph *tracksGraph;
 
     void findTurnouts();
     void buildGraph();

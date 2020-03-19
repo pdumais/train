@@ -20,7 +20,6 @@ public:
     void enableDebug(QString) override;
     QVector<QString> getDebugNames() override;
     CVObject loco;
-    QVector<CVObject> wagonsList;
 };
 
 #endif // MOCKVISIONSERVICE_H

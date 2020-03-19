@@ -3,7 +3,9 @@
 #include <QDebug>
 #include <QUuid>
 #include "constants.h"
+#include "Functions.h"
 #include <math.h>
+
 
 Railroad::Railroad()
 {
@@ -21,7 +23,7 @@ void Railroad::setTracks(QVector<Track*> val)
     this->buildGraph();
 }
 
-Graph<SplitterAnnotation*, TrackSection>* Railroad::getGraph()
+Graph* Railroad::getGraph()
 {
     return this->tracksGraph;
 }
@@ -103,7 +105,7 @@ int Railroad::getClosestTurnout(SplitterAnnotation* current, QString track, bool
 void Railroad::buildGraph()
 {
     if (this->tracksGraph) delete this->tracksGraph;
-    this->tracksGraph = new Graph<SplitterAnnotation*, TrackSection>();
+    this->tracksGraph = new Graph();
 
     for (auto sa : this->turnouts)
     {
@@ -134,7 +136,7 @@ void Railroad::buildGraph()
         else
         {
             nodeName = track0+"end";
-            this->tracksGraph->addNode(nodeName.toStdString(), nullptr);
+            this->tracksGraph->addNode(nodeName.toStdString(), std::any());
         }
 
         if (sa->getClockWise())
@@ -157,7 +159,7 @@ void Railroad::buildGraph()
         else
         {
             nodeName = track1+"end";
-            this->tracksGraph->addNode(nodeName.toStdString(), nullptr);
+            this->tracksGraph->addNode(nodeName.toStdString(), std::any());
         }
 
         if (sa->getClockWise())
@@ -180,7 +182,7 @@ void Railroad::buildGraph()
         else
         {
             nodeName = track2+"end";
-            this->tracksGraph->addNode(nodeName.toStdString(), nullptr);
+            this->tracksGraph->addNode(nodeName.toStdString(), std::any());
         }
 
         if (sa->getClockWise())
@@ -347,34 +349,35 @@ int Railroad::calculateCost(const QPolygon& poly)
 std::vector<PathInfo> Railroad::findShortestPath(QPoint source, QPoint dest)
 {
     // we make a copy of the graph because we don't want to alter the original one
-    Graph<SplitterAnnotation*, TrackSection>* g = new Graph<SplitterAnnotation*, TrackSection>(this->tracksGraph);
+    Graph* g = new Graph(this->tracksGraph);
 
     // Find the edge on which source/dest is on
-    GraphEdge<TrackSection>* sourceEdge = nullptr;
-    GraphEdge<TrackSection>* destinationEdge = nullptr;
+    int sourceEdge=-1;
+    int destinationEdge=-1;
     int indexOfSource;
     int indexOfDestination;
-    for (auto edge : g->getEdges())
+    for (int i = 0; i < g->edgeCount(); i++)
     {
-        QPolygon section = edge->data.polygon;
-        int i;
+        TrackSection ts = anycast(g->getEdgeData(i));
+        QPolygon section = ts.polygon;
+        int n;
 
-        i = section.indexOf(source);
-        if (i != -1)
+        n = section.indexOf(source);
+        if (n != -1)
         {
-            sourceEdge = edge;
-            indexOfSource = i;
+            sourceEdge = i;
+            indexOfSource = n;
         }
 
-        i = section.indexOf(dest);
-        if (i != -1)
+        n = section.indexOf(dest);
+        if (n != -1)
         {
-            destinationEdge = edge;
-            indexOfDestination = i;
+            destinationEdge = i;
+            indexOfDestination = n;
         }
     }
 
-    if (!sourceEdge || !destinationEdge)
+    if (sourceEdge == -1 || destinationEdge == -1)
     {
         qDebug() << "Edge not found for source/destination";
         return std::vector<PathInfo>();
@@ -388,25 +391,31 @@ std::vector<PathInfo> Railroad::findShortestPath(QPoint source, QPoint dest)
     TrackSection sourceSection2;
     TrackSection destinationSection1;
     TrackSection destinationSection2;
-    sourceSection1.polygon = sourceEdge->data.polygon.mid(0,indexOfSource);
-    sourceSection2.polygon = sourceEdge->data.polygon.mid(indexOfSource);
-    destinationSection1.polygon = destinationEdge->data.polygon.mid(0,indexOfDestination);
-    destinationSection2.polygon = destinationEdge->data.polygon.mid(indexOfDestination);
-    sourceSection1.trackName = sourceEdge->data.trackName;
-    sourceSection2.trackName = sourceEdge->data.trackName;
-    destinationSection1.trackName = destinationEdge->data.trackName;
-    destinationSection2.trackName = destinationEdge->data.trackName;
+
+    sourceSection1.polygon = std::any_cast<TrackSection>(g->getEdgeData(sourceEdge)).polygon.mid(0,indexOfSource);
+    sourceSection2.polygon = std::any_cast<TrackSection>(g->getEdgeData(sourceEdge)).polygon.mid(indexOfSource);
+    destinationSection1.polygon = std::any_cast<TrackSection>(g->getEdgeData(destinationEdge)).polygon.mid(0,indexOfDestination);
+    destinationSection2.polygon = std::any_cast<TrackSection>(g->getEdgeData(destinationEdge)).polygon.mid(indexOfDestination);
+    sourceSection1.trackName = std::any_cast<TrackSection>(g->getEdgeData(sourceEdge)).trackName;
+    sourceSection2.trackName = std::any_cast<TrackSection>(g->getEdgeData(sourceEdge)).trackName;
+    destinationSection1.trackName = std::any_cast<TrackSection>(g->getEdgeData(destinationEdge)).trackName;
+    destinationSection2.trackName = std::any_cast<TrackSection>(g->getEdgeData(destinationEdge)).trackName;
 
 
-    g->addNode("source", nullptr);
-    g->addNode("destination", nullptr);
-    g->addEdge(sourceEdge->node1->name, "source", sourceSection1, this->calculateCost(sourceSection1.polygon));
-    g->addEdge("source", sourceEdge->node2->name, sourceSection2, this->calculateCost(sourceSection2.polygon));
-    g->addEdge(destinationEdge->node1->name, "destination", destinationSection1, this->calculateCost(destinationSection1.polygon));
-    g->addEdge("destination", destinationEdge->node2->name, destinationSection2, this->calculateCost(destinationSection2.polygon));
-
+    std::string sourceNode1 = g->getEdgeNodeName(sourceEdge,true);
+    std::string sourceNode2 = g->getEdgeNodeName(sourceEdge,false);
+    std::string destNode1 = g->getEdgeNodeName(destinationEdge,true);
+    std::string destNode2 = g->getEdgeNodeName(destinationEdge,false);
     g->removeEdge(sourceEdge);
+    if (sourceEdge < destinationEdge) destinationEdge--;  // because we removed an element before it so index must change
     g->removeEdge(destinationEdge);
+
+    g->addNode("source", std::any());
+    g->addNode("destination", std::any());
+    g->addEdge(sourceNode1, "source", sourceSection1, this->calculateCost(sourceSection1.polygon));
+    g->addEdge("source", sourceNode2, sourceSection2, this->calculateCost(sourceSection2.polygon));
+    g->addEdge(destNode1, "destination", destinationSection1, this->calculateCost(destinationSection1.polygon));
+    g->addEdge("destination", destNode2, destinationSection2, this->calculateCost(destinationSection2.polygon));
 
     std::vector<PathInfo> path = g->dijkstra("source", "destination");
     return path;

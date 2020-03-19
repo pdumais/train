@@ -23,21 +23,25 @@ public:
     void init(QGraphicsView* view) override;
 
     void removeItem(QString name) override;
-    QGraphicsPathItem* track(QString name) override;
+    void setTrackPen(QString name, QPen p) override;
+    void setTrackPath(QString name, QPainterPath p) override;
     QGraphicsItem* item(QString name) override;
     QGraphicsPolygonItem* polygonItem(QString name) override;
     void updateWayPoint() override;
     void setWaypoint(QPoint w, QPoint trackPoint) override;
     void setProbe(QVideoProbe *probe) override;
+    bool itemExists(QString name) override;
 
 
     QGraphicsPolygonItem* createLocomotiveItem(QString name, ViewType viewType) override;
     QGraphicsPolygonItem* createWagonItem(QString name, ViewType viewType) override;
-    QGraphicsPathItem* createTrackItem(QString name, ViewType viewType) override;
+    void createTrackItem(QString name, ViewType viewType) override;
     QGraphicsPixmapItem* createPixmapItem(QString name, ViewType viewType, QString fileName="", bool selectable=false) override;
     QGraphicsEllipseItem* createAnnotationItem(QString name, ViewType viewType, QString fileName, int radius, bool selectable=false) override;
+
 public slots:
     void on_operation_item_selected();
+    void on_learning_track_updated(QPainterPath p);
 
 
 signals:

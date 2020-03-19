@@ -3,6 +3,27 @@
 
 #include <QPolygon>
 #include <functional>
+#include <any>
+
+class anycast
+{
+private:
+    std::any a;
+public:
+    anycast(std::any a) { this->a = a; };
+    template<typename T>
+    operator T() {
+        if (!a.has_value()) return T();
+        return std::any_cast<T>(a);
+    }
+    template<typename T>
+    operator T*() {
+        if (!a.has_value()) return nullptr;
+        return std::any_cast<T*>(a);
+    }
+};
+
+
 
 class Functions
 {

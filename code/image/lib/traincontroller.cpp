@@ -38,11 +38,11 @@ void TrainController::setSpeed(int val)
     QString str;
     if (this->direction) // true if reverse
     {
-        QTextStream(&str) << "n0\no" << val << "\n";
+        QTextStream(&str) << "p0\no" << val << "\n";
     }
     else
     {
-        QTextStream(&str) << "o0\nn" << val << "\n";
+        QTextStream(&str) << "o0\np" << val << "\n";
     }
     this->serialPort->write(str.toStdString().c_str());
     this->speed = val;

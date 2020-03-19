@@ -52,7 +52,7 @@ void DisplayService::init(QGraphicsView* view)
     QPen trackPen;
     trackPen.setColor(QColor(0,255,0,64));
     trackPen.setWidth(TRACK_WIDTH);
-    this->track("LearningTrack")->setPen(trackPen);
+    this->setTrackPen("LearningTrack",trackPen);
 
     for (int i = 0; i < 20; i++)
     {
@@ -97,6 +97,11 @@ void DisplayService::setWaypoint(QPoint w, QPoint trackPoint)
     this->wayPoint = w;
     this->wayPointEnd = trackPoint;
     this->updateWayPoint();
+}
+
+void DisplayService::on_learning_track_updated(QPainterPath p)
+{
+    this->setTrackPath("LearningTrack", p);
 }
 
 void DisplayService::updateWayPoint()
@@ -226,11 +231,12 @@ QGraphicsPolygonItem* DisplayService::createWagonItem(QString name, ViewType vie
     return r;
 }
 
-QGraphicsPathItem* DisplayService::createTrackItem(QString name, ViewType viewType)
+void DisplayService::createTrackItem(QString name, ViewType viewType)
 {
     QGraphicsPathItem *item = new QGraphicsPathItem();
+    item->setZValue(30);
     this->addGraphicsItem(name,item,viewType);
-    return item;
+
 }
 
 QGraphicsPixmapItem* DisplayService::createPixmapItem(QString name, ViewType viewType, QString fileName, bool selectable)
@@ -276,13 +282,25 @@ QGraphicsItem* DisplayService::addGraphicsItem(QString name, QGraphicsItem* item
     return item;
 }
 
-QGraphicsPathItem* DisplayService::track(QString name)
+void DisplayService::setTrackPen(QString name, QPen p)
 {
-    if (!this->items.contains(name)) return nullptr;
-
-    return dynamic_cast<QGraphicsPathItem*>(this->items[name].item);
-
+    if (!this->items.contains(name)) return;
+    auto g = dynamic_cast<QGraphicsPathItem*>(this->items[name].item);
+    g->setPen(p);
 }
+
+void DisplayService::setTrackPath(QString name, QPainterPath p)
+{
+    if (!this->items.contains(name)) return;
+    auto g = dynamic_cast<QGraphicsPathItem*>(this->items[name].item);
+    g->setPath(p);
+}
+
+bool DisplayService::itemExists(QString name)
+{
+    return this->items.contains(name);
+}
+
 
 QGraphicsItem* DisplayService::item(QString name)
 {

@@ -47,7 +47,7 @@ public slots:
     void on_frame_processed(CVObject obj, QVector<CVObject> wagons);
     void on_marker_found(DetectedMarker);
     void on_waypoint_set(QPoint);
-    void on_fingers_detected(QVector<QPoint>);
+    //void on_fingers_detected(QVector<QPoint>);
 
 private:
 
@@ -62,19 +62,6 @@ private:
         QVector<SplitterSearchNode> children;
     };
 
-    /*struct FingerPosition
-    {
-        QPoint finger;
-        int debounce;
-        bool updated;
-    };
-
-    QVector<FingerPosition*> fingers;*/
-
-    int fingerCount;
-    QTime fingerCountDebounce;
-    QTime fingerCountlastUpdate;
-    bool fingerCountReacted;
 
     ActionRunner*  actionRunner;
     TrainPosition waypoint;

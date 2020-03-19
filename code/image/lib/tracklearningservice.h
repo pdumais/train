@@ -13,16 +13,17 @@ class TrackLearningService : public QObject
 {
     Q_OBJECT
 public:
-    explicit TrackLearningService(TrainController* controller, VisionService* vision, Configuration* conf, QObject *parent = nullptr);
+    explicit TrackLearningService(TrainController* controller, VisionService* vision, Configuration* conf, QObject* listener, QObject *parent = nullptr);
     virtual ~TrackLearningService();
 
-    void start(QString name, QGraphicsPathItem* guiTrack);
+    void start(QString name);
     void stop();
     QString getName();
     QPolygon* getLearnedPolygon();
 
 signals:
     void    learningStopped(QString trackName);
+    void    trackUpdated(QPainterPath);
 
 public slots:
     void on_frame_processed(CVObject, QVector<CVObject>);
@@ -35,7 +36,6 @@ private:
     QString name;
     bool learning;
     QPolygon *path;
-    QGraphicsPathItem* guiTrack;
 };
 
 #endif // TRACKLEARNER_H

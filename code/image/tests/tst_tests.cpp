@@ -12,6 +12,8 @@
 #include "ActionRunner.h"
 #include "constants.h"
 #include "Functions.h"
+#include <any>
+#include <utility>
 
 #define CONFIG_FILE "/home/pat/projects/train/code/image/tests/testdata/config.json"
 #define TRACK_DATA "/home/pat/projects/train/code/image/tests/testdata/tracks.dat"
@@ -35,6 +37,7 @@ private slots:
     void goFromInnerToOutter();
     void goFromLoopEndToOutter();
     void goFromLoopEndToMainAfterOutter();
+    void goFromOutterToMainAfterOutter();
     void goFromOutterToLoop();
     void goFromOutterToFarEnd();
     void validateTrainObject();
@@ -52,8 +55,9 @@ private:
     MockDisplayService* display;
 
     void validateSplitterSwitching(SplitterAnnotation *sa, int activatedTrack, bool after);
-    void setTrainPosition(QPoint p, int w=4);
+    void setTrainPosition(QPoint p, int w=4, QVector<CVObject> wagons = QVector<CVObject>());
     CVObject buildCVObject(QPoint p, int width);
+    SplitterAnnotation* getSAFromAny(std::any a);
 };
 
 tests::tests()
@@ -114,13 +118,13 @@ CVObject tests::buildCVObject(QPoint p, int width)
     return cv;
 }
 
-void tests::setTrainPosition(QPoint p, int width)
+void tests::setTrainPosition(QPoint p, int width, QVector<CVObject> wagons)
 {
 
     CVObject cv = buildCVObject(p,width);
     this->vision->loco = cv;
 
-    railroadLogicService->on_frame_processed(cv, QVector<CVObject>());
+    railroadLogicService->on_frame_processed(cv, wagons);
 }
 
 void tests::validateSplitterSwitching(SplitterAnnotation *sa, int activatedTrack, bool after)
@@ -151,25 +155,29 @@ void tests::validateSplitterSwitching(SplitterAnnotation *sa, int activatedTrack
     }
 }
 
+SplitterAnnotation* tests::getSAFromAny(std::any a)
+{
+    if (!a.has_value()) return nullptr;
+    return anycast(a);
+}
+
 void tests::validateGraph()
 {
     Railroad* rr = this->railroadLogicService->getRailroad();
-    auto nodes = rr->getGraph()->getNodes();
-    auto edges = rr->getGraph()->getEdges();
 
-    QCOMPARE(nodes.size(), 6);
-    QCOMPARE(edges.size(), 7);
+    QCOMPARE(rr->getGraph()->nodeCount(), 6);
+    QCOMPARE(rr->getGraph()->edgeCount(), 7);
 
     TrainPosition source = this->railroadLogicService->findClosestPoint(QPoint(853,816));
     TrainPosition dest = this->railroadLogicService->findClosestPoint(QPoint(119,186));
     auto path = rr->findShortestPath(source.point, dest.point);
     QCOMPARE(path.size(), 3);
-    QCOMPARE(((GraphNode<SplitterAnnotation*>*)((GraphEdge<QPolygon>*)(path[0].edge))->node1)->data, nullptr);
-    QCOMPARE(((GraphNode<SplitterAnnotation*>*)((GraphEdge<QPolygon>*)(path[0].edge))->node2)->data, loopTopSplitter);
-    QCOMPARE(((GraphNode<SplitterAnnotation*>*)((GraphEdge<QPolygon>*)(path[1].edge))->node1)->data, outterSplitter);
-    QCOMPARE(((GraphNode<SplitterAnnotation*>*)((GraphEdge<QPolygon>*)(path[1].edge))->node2)->data, loopTopSplitter);
-    QCOMPARE(((GraphNode<SplitterAnnotation*>*)((GraphEdge<QPolygon>*)(path[2].edge))->node1)->data, nullptr);
-    QCOMPARE(((GraphNode<SplitterAnnotation*>*)((GraphEdge<QPolygon>*)(path[2].edge))->node2)->data, outterSplitter);
+    QCOMPARE(getSAFromAny(path[0].node1Data), nullptr);
+    QCOMPARE(getSAFromAny(path[0].node2Data), loopTopSplitter);
+    QCOMPARE(getSAFromAny(path[1].node1Data), outterSplitter);
+    QCOMPARE(getSAFromAny(path[1].node2Data), loopTopSplitter);
+    QCOMPARE(getSAFromAny(path[2].node1Data), nullptr);
+    QCOMPARE(getSAFromAny(path[2].node2Data), outterSplitter);
 }
 
 void tests::checkTrackAssignment()
@@ -434,6 +442,37 @@ void tests::goFromLoopEndToMainAfterOutter()
     validateSplitterSwitching(outterSplitter, 0, true);
 }
 
+void tests::goFromOutterToMainAfterOutter()
+{
+    setTrainPosition(QPoint(119,186));
+
+    QPoint waypoint(291,753);
+    railroadLogicService->setWaypoint(waypoint);
+    railroadLogicService->gotoWaypoint();
+
+    auto actionList = railroadLogicService->getActionRunner()->getActions();
+    QCOMPARE(actionList.size(),4);
+
+    QCOMPARE(dynamic_cast<MoveToSplitterAction*>(actionList[0])->getCurrentTrack(), "outter");
+    QCOMPARE(dynamic_cast<MoveToSplitterAction*>(actionList[0])->getReverse(), false);
+    QCOMPARE(dynamic_cast<MoveToSplitterAction*>(actionList[0])->getTargetTrack(), "main");
+
+    QCOMPARE(dynamic_cast<ChangeTrackAction*>(actionList[1])->getSplitterAnnotation(), outterSplitter);
+    QCOMPARE(dynamic_cast<ChangeTrackAction*>(actionList[1])->getCommingFromT0(), false);
+    QCOMPARE(dynamic_cast<ChangeTrackAction*>(actionList[1])->getTargetTrack(), "main");
+
+    QCOMPARE(dynamic_cast<MoveToAction*>(actionList[2])->getTargetPosition(), railroadLogicService->getTrackWaypoint());
+    QCOMPARE(dynamic_cast<MoveToAction*>(actionList[2])->getReverse(), true);
+    QCOMPARE(dynamic_cast<MoveToAction*>(actionList[2])->getCurrentTrack(), "main");
+
+
+    validateSplitterSwitching(outterSplitter, 2, false);
+    validateSplitterSwitching(outterSplitter, 0, true);
+    validateSplitterSwitching(outterSplitter, 1, false);
+    validateSplitterSwitching(outterSplitter, 0, true);
+}
+
+
 void tests::goFromOutterToLoop()
 {
     setTrainPosition(QPoint(119,186));
@@ -520,12 +559,13 @@ void tests::validateTrainObject()
 {
     int w = 100;
 
-    this->vision->wagonsList.append(buildCVObject(QPoint(1000-w-MAXIMUM_WAGON_CONNECTION_SIZE+1, 500), w));
-    this->vision->wagonsList.append(buildCVObject(QPoint(1000-(2*w)-MAXIMUM_WAGON_CONNECTION_SIZE+1, 500), w));
-    this->vision->wagonsList.append(buildCVObject(QPoint(1000-w-MAXIMUM_WAGON_CONNECTION_SIZE+1, 700), w));
-    this->vision->wagonsList.append(buildCVObject(outterSplitter->getPosition(), w));
+    QVector<CVObject> wagonsList;
+    wagonsList.append(buildCVObject(QPoint(1000-w-MAXIMUM_WAGON_CONNECTION_SIZE+1, 500), w));
+    wagonsList.append(buildCVObject(QPoint(1000-(2*w)-MAXIMUM_WAGON_CONNECTION_SIZE+1, 500), w));
+    wagonsList.append(buildCVObject(QPoint(1000-w-MAXIMUM_WAGON_CONNECTION_SIZE+1, 700), w));
+    wagonsList.append(buildCVObject(outterSplitter->getPosition(), w));
 
-    setTrainPosition(QPoint(1000,500), w);
+    setTrainPosition(QPoint(1000,500), w, wagonsList);
 
     QColor wcol0 = this->display->polygonItem("wagon0")->brush().color();
     QColor wcol1 = this->display->polygonItem("wagon1")->brush().color();

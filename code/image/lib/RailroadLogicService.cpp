@@ -38,14 +38,6 @@ RailroadLogicService::RailroadLogicService(ITrainController *ctrl, IVisionServic
     connect(this->display, SIGNAL(waypointSet(QPoint)), this, SLOT(on_waypoint_set(QPoint)));
 
     this->controller->setSpeed(0);
-/*    for (int i = 0; i < 5; i++)
-    {
-        FingerPosition* f = new FingerPosition;
-        f->debounce = 0;
-        this->fingers.append(f);
-    }*/
-    this->fingerCount = 0;
-    this->fingerCountDebounce = QTime();
 
     // Enable detection of annotations only for 1 minute
     this->vision->enableAnnotationDetection(true);
@@ -79,7 +71,7 @@ void RailroadLogicService::on_waypoint_set(QPoint p)
     this->setWaypoint(p);
 }
 
-void RailroadLogicService::on_fingers_detected(QVector<QPoint> positions)
+/*void RailroadLogicService::on_fingers_detected(QVector<QPoint> positions)
 {
     if (this->fingerCountlastUpdate.elapsed() > 2000)
     {
@@ -114,7 +106,7 @@ void RailroadLogicService::on_fingers_detected(QVector<QPoint> positions)
         }
     }
 
-}
+}*/
 
 void RailroadLogicService::on_frame_processed(CVObject obj, QVector<CVObject> wagons)
 {
@@ -367,13 +359,11 @@ void RailroadLogicService::gotoWaypoint()
         it++;
         if (it == path.end()) break;
 
-        GraphEdge<TrackSection>* edge = (GraphEdge<TrackSection>*)pi.edge;
-        GraphNode<SplitterAnnotation*>* dstNode = (GraphNode<SplitterAnnotation*>*)(pi.direction?edge->node1:edge->node2);
-        if (!dstNode->data) continue;
+        SplitterAnnotation* sa = anycast(pi.direction?pi.node1Data:pi.node2Data);
+        if (!sa) continue;
 
-        SplitterAnnotation* sa = dstNode->data;
-        QString sourceTrack = edge->data.trackName;
-        QString targetTrack = ((GraphEdge<TrackSection>*)(*it).edge)->data.trackName;
+        QString sourceTrack = std::any_cast<TrackSection>(pi.edgeData).trackName;
+        QString targetTrack = std::any_cast<TrackSection>((*it).edgeData).trackName;
 
         bool commingFromT0 = (pi.direction == sa->getClockWise());
         QString track;
@@ -395,9 +385,7 @@ void RailroadLogicService::gotoWaypoint()
     while (1)
     {
         PathInfo pi = *it;
-        GraphEdge<TrackSection>* edge = (GraphEdge<TrackSection>*)pi.edge;
-        //GraphNode<SplitterAnnotation*>* sourceNode = (GraphNode<SplitterAnnotation*>*)(pi.direction?edge->node2:edge->node1);
-        GraphNode<SplitterAnnotation*>* dstNode = (GraphNode<SplitterAnnotation*>*)(pi.direction?edge->node1:edge->node2);
+        int edgeIndex = pi.edgeIndex;
 
         it++;
         if (it == path.end())
@@ -409,13 +397,15 @@ void RailroadLogicService::gotoWaypoint()
                         pi.direction));
             break;
         }
-        QString sourceTrack = edge->data.trackName;
+        QString sourceTrack = std::any_cast<TrackSection>(pi.edgeData).trackName;
         QString targetTrack = sourceTrack;
-        if (it!=path.end()) targetTrack = ((GraphEdge<TrackSection>*)(*it).edge)->data.trackName;
+        if (it!=path.end()) targetTrack = std::any_cast<TrackSection>((*it).edgeData).trackName;
 
-        bool commingFromT0 = pi.direction == dstNode->data->getClockWise();
-        this->actionRunner->addAction(new MoveToSplitterAction(dstNode->data, sourceTrack, targetTrack, pi.direction));
-        this->actionRunner->addAction(new ChangeTrackAction(dstNode->data, sourceTrack, targetTrack, commingFromT0));
+        SplitterAnnotation* dstNodeData = anycast(pi.direction?pi.node1Data:pi.node2Data);
+        if (!dstNodeData) continue;
+        bool commingFromT0 = pi.direction == dstNodeData->getClockWise();
+        this->actionRunner->addAction(new MoveToSplitterAction(dstNodeData, sourceTrack, targetTrack, pi.direction));
+        this->actionRunner->addAction(new ChangeTrackAction(dstNodeData, sourceTrack, targetTrack, commingFromT0));
     }
     this->actionRunner->addAction(new ClearWaypointAction());
     this->actionRunner->run();
@@ -449,20 +439,17 @@ void RailroadLogicService::updateTracks()
     QVector<QPolygon> tracksPoly;
     for (Track* t : this->configuration->getTracks())
     {
-        QGraphicsPathItem* path = this->display->track(t->getName());
-        if (!path)
+        if (!this->display->itemExists(t->getName()))
         {
             this->display->createTrackItem(t->getName(), IDisplayService::ViewType::All);
-            path = this->display->track(t->getName());
             QPen trackPen;
             trackPen.setColor(QColor(255,255,0,32));
             trackPen.setWidth(TRACK_WIDTH);
-            path->setPen(trackPen);
+            this->display->setTrackPen(t->getName(), trackPen);
         }
-        path->setZValue(30); //TODO: use enum for that value
         QPainterPath p;
         p.addPolygon(t->getPolygon());
-        path->setPath(p);
+        this->display->setTrackPath(t->getName(), p);
         tracksPoly.push_back(t->getPolygon());
     }
 

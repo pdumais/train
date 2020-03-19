@@ -26,7 +26,7 @@ int main(int argc, char *argv[])
     DisplayService displayService;
     TrainController trainController(&conf);
     LightService lightService(&trainController, conf.geLightLevel());
-    TrackLearningService trackLearningService(&trainController, &visionService, &conf);
+    TrackLearningService trackLearningService(&trainController, &visionService, &conf, &displayService);
     RailroadLogicService railroadLogicService(&trainController, &visionService, &displayService, &conf, &audioService);
 
 /*    RailroadLogicService railroadLogicService(&trainController, 0, 0, &conf, 0);

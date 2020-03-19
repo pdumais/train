@@ -4,7 +4,7 @@
 #include <QPoint>
 
 
-TrackLearningService::TrackLearningService(TrainController *ctrl, VisionService* vision, Configuration *conf, QObject *parent) : QObject(parent)
+TrackLearningService::TrackLearningService(TrainController *ctrl, VisionService* vision, Configuration *conf, QObject* listener, QObject *parent) : QObject(parent)
 {
     this->configuration = conf;
     this->vision = vision;
@@ -12,9 +12,10 @@ TrackLearningService::TrackLearningService(TrainController *ctrl, VisionService*
     this->learning = false;
     this->path = nullptr;
 
+    //TODO: how to make display receive that event without having a dependency on tracklearningservice?
+    connect(this, SIGNAL(trackUpdated(QPainterPath)), listener, SLOT(on_learning_track_updated(QPainterPath)));
     connect(this->vision, SIGNAL(frameProcessed(CVObject, QVector<CVObject>)), this, SLOT(on_frame_processed(CVObject, QVector<CVObject>)));
     connect(this->vision, SIGNAL(locomotiveLost()), this, SLOT(on_locomotive_lost()));
-
 }
 
 TrackLearningService::~TrackLearningService()
@@ -83,15 +84,14 @@ void TrackLearningService::on_frame_processed(CVObject obj, QVector<CVObject>)
     QPainterPath p;
     p.addPolygon(*this->path);
 
-    this->guiTrack->setPath(p);
+    emit trackUpdated(p);
 
 }
 
-void TrackLearningService::start(QString name, QGraphicsPathItem* guiTrack)
+void TrackLearningService::start(QString name)
 {
     if (this->path) delete this->path;
     this->path = nullptr;
-    this->guiTrack = guiTrack;
     this->learning = true;
     this->name = name;
 
@@ -105,7 +105,7 @@ void TrackLearningService::stop()
     this->vision->setRestrictLocomotiveDetectionToTracks(true);
     this->controller->setSpeed(0);
     this->learning = false;
-    this->guiTrack->setPath(QPainterPath());
+    emit trackUpdated(QPainterPath());
     emit learningStopped(this->name);
 }
 

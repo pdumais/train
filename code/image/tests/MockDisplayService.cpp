@@ -34,11 +34,6 @@ void MockDisplayService::removeItem(QString name)
 {
 }
 
-QGraphicsPathItem *MockDisplayService::track(QString name)
-{
-    return 0;
-}
-
 QGraphicsItem *MockDisplayService::item(QString name)
 {
     if (name == "locomotive") return this->loco;
@@ -76,11 +71,6 @@ QGraphicsPolygonItem *MockDisplayService::createWagonItem(QString name, IDisplay
     return 0;
 }
 
-QGraphicsPathItem *MockDisplayService::createTrackItem(QString name, IDisplayService::ViewType viewType)
-{
-    return 0;
-}
-
 QGraphicsPixmapItem *MockDisplayService::createPixmapItem(QString name, IDisplayService::ViewType viewType, QString fileName, bool selectable)
 {
     return 0;
@@ -89,5 +79,23 @@ QGraphicsPixmapItem *MockDisplayService::createPixmapItem(QString name, IDisplay
 QGraphicsEllipseItem *MockDisplayService::createAnnotationItem(QString name, IDisplayService::ViewType viewType, QString fileName, int radius, bool selectable)
 {
     return 0;
+}
+
+
+bool MockDisplayService::itemExists(QString name)
+{
+    return false;
+}
+
+void MockDisplayService::setTrackPen(QString name, QPen p)
+{
+}
+
+void MockDisplayService::setTrackPath(QString name, QPainterPath p)
+{
+}
+
+void MockDisplayService::createTrackItem(QString name, ViewType viewType)
+{
 }
 
